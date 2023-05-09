@@ -93,9 +93,6 @@ do
     ckpt=/root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue/$seed/ckpt.pt
     gp_ckpt=/root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/stage2_model/CEdue_s2/$seed/gp_ckpt.pt
     
-    
-    CUDA_VISIBLE_DEVICES=0 python bay_CEdue_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed 
-    
     CUDA_VISIBLE_DEVICES=0 python uncertainty_CEDUE_fruit_s2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
 
     CUDA_VISIBLE_DEVICES=0 python inference_CEDUE_2stage.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
