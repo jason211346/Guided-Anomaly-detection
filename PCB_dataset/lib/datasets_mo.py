@@ -108,6 +108,7 @@ class CustomDataset(torch.utils.data.Dataset):
         component_name = row["component_name"]
         file_path = row["file_path"]
         return (image, label, file_path, component_name)
+    
 def CreateDataset(seed,add_test, testing=None):
     random.seed(seed)
     print('==> Preparing data..')
@@ -1749,16 +1750,6 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
     component_dict = {component_label_list[i]: component_name_list[i] for i in range(len(component_label_list))}
 #     import pdb;pdb.set_trace()
 
-    if testing is None:
-        df.loc[df['class'] == 1, ['component_name']] = 35 # missing
-        df.loc[df['class'] == 3, ['component_name']] = 36 # stand
-    df.loc[df['class'] == 0, 'class'] = 0
-    df.loc[df['class'] == 1, 'class'] = 1
-    df.loc[df['class'] == 2, 'class'] = 1
-    df.loc[df['class'] == 3, 'class'] = 1
-    df.loc[df['class'] == 4, 'class'] = 1
-    df.loc[df['class'] == 5, 'class'] = 1
-
 
 #     _, _, _, _, _, _, _, train_regroup_df, _ = CreateDataset_regroup(seed ,add_test)
     new_group_component_name = clust.results['filenames']
@@ -1779,26 +1770,20 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
             regroup_df.loc[df['component_name'] == i, ['component_name']] = new_group     
 #         import pdb;pdb.set_trace() 
             
-    if testing is None:
-        regroup_df.loc[regroup_df['component_name'] == 35, ['component_name']] = missing_label
-        regroup_df.loc[regroup_df['component_name'] == 36, ['component_name']] = stand_label
+
 
     df = regroup_df.copy()
 
     # 將Test set從Training set中移除並重新切割資料集
 
     trainComponent = df['component_name'].value_counts().index.tolist()
-    trainComponent.remove(missing_label)
-    trainComponent.remove(stand_label)
+
     valComponent = random.sample(trainComponent, 3)
     for i in valComponent:
         trainComponent.remove(i)
     testComponent = random.sample(trainComponent, 3)
     for i in testComponent:
         trainComponent.remove(i)
-
-    trainComponent.append(missing_label)
-    trainComponent.append(stand_label)
     
     trainDatasetMask = df['component_name'].isin(trainComponent)
     train_df = df[trainDatasetMask].copy()
@@ -1813,6 +1798,15 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
             train_component_name.append(v)
     print(train_component_name)
     
+    train_df.loc[train_df['class'] == 1, ['component_name']] = missing_label
+    train_df.loc[train_df['class'] == 3, ['component_name']] = stand_label
+
+    train_df.loc[train_df['class'] == 0, 'class'] = 0
+    train_df.loc[train_df['class'] == 1, 'class'] = 1
+    train_df.loc[train_df['class'] == 2, 'class'] = 1
+    train_df.loc[train_df['class'] == 3, 'class'] = 1
+    train_df.loc[train_df['class'] == 4, 'class'] = 1
+    train_df.loc[train_df['class'] == 5, 'class'] = 1
     
     # 將一部分的In-distribution old component分出來給val set和test set (ind_val, ind_test)
     train_df, ind_val, ind_test = split_stratified_into_train_val_test(train_df, stratify_colname='component_name', frac_train=0.8, frac_val=0.1, frac_test=0.1, random_state=seed)
@@ -1828,7 +1822,16 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
         if k in val_component_label:  
             val_component_name.append(v)
     print(val_component_name)
+    
+    val_df.loc[val_df['class'] == 1, ['component_name']] = missing_label
+    val_df.loc[val_df['class'] == 3, ['component_name']] = stand_label
 
+    val_df.loc[val_df['class'] == 0, 'class'] = 0
+    val_df.loc[val_df['class'] == 1, 'class'] = 1
+    val_df.loc[val_df['class'] == 2, 'class'] = 1
+    val_df.loc[val_df['class'] == 3, 'class'] = 1
+    val_df.loc[val_df['class'] == 4, 'class'] = 1
+    val_df.loc[val_df['class'] == 5, 'class'] = 1
     val_df = pd.concat([val_df, ind_val])
     
     testDatasetMask = df['component_name'].isin(testComponent)
@@ -1843,6 +1846,15 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
             test_component_name.append(v)
     print(test_component_name)
     
+    test_df.loc[test_df['class'] == 1, ['component_name']] = missing_label
+    test_df.loc[test_df['class'] == 3, ['component_name']] = stand_label
+
+    test_df.loc[test_df['class'] == 0, 'class'] = 0
+    test_df.loc[test_df['class'] == 1, 'class'] = 1
+    test_df.loc[test_df['class'] == 2, 'class'] = 1
+    test_df.loc[test_df['class'] == 3, 'class'] = 1
+    test_df.loc[test_df['class'] == 4, 'class'] = 1
+    test_df.loc[test_df['class'] == 5, 'class'] = 1
     test_df = pd.concat([test_df, ind_test])
     
     
@@ -1962,8 +1974,6 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
             val_good_df=val_good_df.drop(df_idx)
             val_good_df = pd.concat([val_good_df, component])
             
-    val_com_df = val_good_df.copy()
-            
     val_bad_df = val_df.copy()
     val_bad_df = val_bad_df.loc[val_bad_df['class']==1]
     a = Counter(val_bad_df['component_name'])
@@ -1980,7 +1990,7 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
     print("Num of Images in Validation set: ", sum(val_df['class'].value_counts().tolist()))
     print("Num of Images in Testing set: ", sum(test_df['class'].value_counts().tolist()))
     
-    return train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df, val_com_df
+    return train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df
 def CreateDataset_regroup_due_2_seed42(seed , add_test, testing=None):
     # 1:A, 2:B, 3:C, 4:D, 7:F, 8:E
     random.seed(seed)
@@ -3108,12 +3118,12 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
     component_dict = {component_label_list[i]: component_name_list[i] for i in range(len(component_label_list))}
 #     import pdb;pdb.set_trace()
 
-    if testing is None:
-        df.loc[df['class'] == 1, ['component_name']] = 35 # missing
-        df.loc[df['class'] == 3, ['component_name']] = 36 # stand
-        df.loc[df['class'] == 2, ['component_name']] = 37 # shift
-        df.loc[df['class'] == 5, ['component_name']] = 38 # short
-        df.loc[df['class'] == 4, ['component_name']] = 39 # broken
+
+#     df.loc[df['class'] == 1, ['component_name']] = 35 # missing
+#     df.loc[df['class'] == 3, ['component_name']] = 36 # stand
+#     df.loc[df['class'] == 2, ['component_name']] = 37 # shift
+#     df.loc[df['class'] == 5, ['component_name']] = 38 # short
+#     df.loc[df['class'] == 4, ['component_name']] = 39 # broken
 
     new_group_component_name = clust.results['filenames']
     new_group_list = list(set(clust.results['labels']))
@@ -3129,32 +3139,19 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         for i in label_newgroup:
             
             regroup_df.loc[df['component_name'] == i, ['component_name']] = new_group     
-            
-    if testing is None:
-        regroup_df.loc[regroup_df['component_name'] == 35, ['component_name']] = missing_label
-        regroup_df.loc[regroup_df['component_name'] == 36, ['component_name']] = stand_label
-        regroup_df.loc[regroup_df['component_name'] == 37, ['component_name']] = shift_label
-        regroup_df.loc[regroup_df['component_name'] == 38, ['component_name']] = short_label
-        regroup_df.loc[regroup_df['component_name'] == 39, ['component_name']] = broke_label
-
-
 
     df = regroup_df.copy()
 
     # 將Test set從Training set中移除並重新切割資料集
     trainComponent = df['component_name'].value_counts().index.tolist()
 #     import pdb;pdb.set_trace()
-    trainComponent.remove(missing_label)
-    trainComponent.remove(stand_label)
+
     valComponent = random.sample(trainComponent, 3)
     for i in valComponent:
         trainComponent.remove(i)
     testComponent = random.sample(trainComponent, 3)
     for i in testComponent:
         trainComponent.remove(i)
-
-    trainComponent.append(missing_label)
-    trainComponent.append(stand_label)
     
     trainDatasetMask = df['component_name'].isin(trainComponent)
     train_df = df[trainDatasetMask].copy()
@@ -3169,6 +3166,11 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
             train_component_name.append(v)
     print(train_component_name)
     
+    train_df.loc[train_df['class'] == 1, ['component_name']] = missing_label
+    train_df.loc[train_df['class'] == 3, ['component_name']] = stand_label
+    train_df.loc[train_df['class'] == 2, ['component_name']] = shift_label
+    train_df.loc[train_df['class'] == 5, ['component_name']] = short_label
+    train_df.loc[train_df['class'] == 4, ['component_name']] = broke_label
     
     # 將一部分的In-distribution old component分出來給val set和test set (ind_val, ind_test)
     train_df, ind_val, ind_test = split_stratified_into_train_val_test(train_df, stratify_colname='component_name', frac_train=0.8, frac_val=0.1, frac_test=0.1, random_state=seed)
@@ -3184,7 +3186,12 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         if k in val_component_label:  
             val_component_name.append(v)
     print(val_component_name)
-
+    
+    val_df.loc[val_df['class'] == 1, ['component_name']] = missing_label
+    val_df.loc[val_df['class'] == 3, ['component_name']] = stand_label
+    val_df.loc[val_df['class'] == 2, ['component_name']] = shift_label
+    val_df.loc[val_df['class'] == 5, ['component_name']] = short_label
+    val_df.loc[val_df['class'] == 4, ['component_name']] = broke_label
     val_df = pd.concat([val_df, ind_val])
     
     testDatasetMask = df['component_name'].isin(testComponent)
@@ -3198,6 +3205,12 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         if k in test_component_label:  
             test_component_name.append(v)
     print(test_component_name)
+    
+    test_df.loc[test_df['class'] == 1, ['component_name']] = missing_label
+    test_df.loc[test_df['class'] == 3, ['component_name']] = stand_label
+    test_df.loc[test_df['class'] == 2, ['component_name']] = shift_label
+    test_df.loc[test_df['class'] == 5, ['component_name']] = short_label
+    test_df.loc[test_df['class'] == 4, ['component_name']] = broke_label
     
     test_df = pd.concat([test_df, ind_test])
     
@@ -3669,7 +3682,7 @@ def get_PHISON_regroup_3(root, seed):
     
     add_test = True
     
-    train_cls_regroup_df, val_regroup_df, test_regroup_df, train_component_label, val_component_label, test_component_label, train_com_regroup_df, val_com_df = CreateDataset_regroup_due_2_seed1212(seed ,add_test)
+    train_cls_regroup_df, val_regroup_df, test_regroup_df, train_component_label, val_component_label, test_component_label, train_com_regroup_df = CreateDataset_regroup_due_2_seed1212(seed ,add_test)
     
     num_classes = len(set(train_com_regroup_df['component_name']))
 
@@ -3682,7 +3695,7 @@ def get_PHISON_regroup_3(root, seed):
     train_com_dataset = CustomDataset(train_com_regroup_df, transform=train_transform)  
     
     test_dataset = CustomDataset(val_regroup_df, transform=test_transform)
-    test_com_dataset = CustomDataset(val_com_df, transform=test_transform)
+#     test_com_dataset = CustomDataset(val_com_df, transform=test_transform)
     
     per_component_num = 128 // len(train_com_dataset.dataframe['component_name'].value_counts().index)
     per_class_num = 128 // len(train_cls_dataset.dataframe['class'].value_counts().index)
@@ -3699,7 +3712,7 @@ def get_PHISON_regroup_3(root, seed):
 
 
 
-    return input_size ,num_classes ,train_com_loader, train_cls_loader, test_dataset ,train_cls_dataset,train_com_dataset, test_com_dataset
+    return input_size ,num_classes ,train_com_loader, train_cls_loader, test_dataset ,train_cls_dataset,train_com_dataset
 def get_PHISON_regroup_4(root, seed):
     input_size = 224
 #     num_classes = 23
@@ -4519,7 +4532,7 @@ def get_PHISON_regroup_six(root, seed):
 
 
 
-    return input_size ,num_classes ,train_com_loader, train_cls_loader, test_dataset ,train_cls_dataset,train_com_dataset
+    return input_size ,num_classes ,train_com_loader, train_cls_loader, test_dataset ,train_cls_dataset ,train_com_dataset
 
 
 def get_PHISON(root, seed):
