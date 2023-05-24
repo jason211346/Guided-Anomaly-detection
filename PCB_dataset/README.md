@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 - **Stage 1 : Hybrid Expert model training:**
 ```
-python train_CEdue.py --output_dir /root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue --seed $seed
+python train_CEDUE.py --output_dir /root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue --seed $seed
 ```
 - **Stage 2 : Stage2 model training**
 ```
@@ -55,7 +55,7 @@ CUDA_VISIBLE_DEVICES=0 python train_data_regroup.py --output_dir /root/notebooks
 # stage 1
 for seed in 2 211 1212
 do 
-    CUDA_VISIBLE_DEVICES=0 python train_CEdue.py --output_dir /root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue --seed $seed
+    CUDA_VISIBLE_DEVICES=0 python train_CEDUE.py --output_dir /root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue --seed $seed
 done
 # stage 2
 for seed in 2 211 1212

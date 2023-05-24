@@ -29,7 +29,7 @@ from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
 from util_mo import *
 import torch.backends.cudnn as cudnn
 from due import dkl_Phison_mo, dkl_Phison_mo_s2
-# from due.wide_resnet_Phison_old import WideResNet
+
 from lib.datasets_mo import get_dataset
 
 from gpytorch.likelihoods import SoftmaxLikelihood
