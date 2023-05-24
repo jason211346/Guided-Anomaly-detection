@@ -19,7 +19,7 @@ from gpytorch.mlls import VariationalELBO
 from gpytorch.likelihoods import SoftmaxLikelihood
 
 from due import dkl_Phison_mo, dkl_Phison_mo_s2
-from due.wide_resnet_Phison import WideResNet
+
 from due.sngp import Laplace
 
 from lib.datasets_mo import get_dataset
