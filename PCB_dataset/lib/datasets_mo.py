@@ -3082,10 +3082,13 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
     
     # Load model
     clust = Clustimage(method='pca')
-    clust.load(f'/root/notebooks/DUE/clust/{seed}_pretrain_all_clustimage_model')
+    clust.load(f'/root/notebooks/DUE/clust/1212_pretrain_all_clustimage_model')
     
     missing_label = len(set(clust.results['labels']))
     stand_label = missing_label + 1
+    shift_label = stand_label +1
+    short_label = shift_label +1
+    broke_label = short_label +1
     
     # 分成6個class
     df.loc[df['class'] == "good", 'class'] = 0
@@ -3104,60 +3107,17 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
     component_label_list = df['component_name'].value_counts().index.tolist()
     component_dict = {component_label_list[i]: component_name_list[i] for i in range(len(component_label_list))}
 #     import pdb;pdb.set_trace()
-#     df.loc[df['class'] == 1, ['component_name']] = 35 # missing
-#     df.loc[df['class'] == 3, ['component_name']] = 36 # stand
-#     df.loc[df['class'] == 0, 'class'] = 0
-#     df.loc[df['class'] == 1, 'class'] = 1
-#     df.loc[df['class'] == 2, 'class'] = 1
-#     df.loc[df['class'] == 3, 'class'] = 1
-#     df.loc[df['class'] == 4, 'class'] = 1
-#     df.loc[df['class'] == 5, 'class'] = 1
-    
-    ### train_defect_df
-#     good_df = df.copy()
-#     good_df = good_df.loc[good_df['class']==0]
-#     aaa = Counter(good_df['component_name'])
-#     for i in range(max(aaa)):
-#         if aaa[i] >10000:
-#             component = good_df.loc[good_df['component_name']==i]
-#             component = component.sample(n=10000,random_state=42,axis=0)
-#             df_idx = good_df[good_df['component_name']==i].index
-#             good_df = good_df.drop(df_idx)
-#             good_df = pd.concat([good_df, component])
 
-#     bad_df = df.copy()
-#     stand_df = bad_df.loc[ ((bad_df['class']!=1) &( bad_df['class']!=0)) ]
-#     bad_df = bad_df.loc[bad_df['class']==1]
-#     aaa = Counter(bad_df['component_name'])
-
-#     for i in range(max(aaa)):
-#         if aaa[i] >10000:
-#             component = bad_df.loc[bad_df['component_name']==i]
-#             component = component.sample(n=10000,random_state=42,axis=0)
-#             df_idx = bad_df[bad_df['component_name']==i].index
-#             bad_df = bad_df.drop(df_idx)
-#             bad_df = pd.concat([bad_df, component])
-
-#     bad_df =  pd.concat([bad_df, stand_df])
-
-#     df = pd.concat([good_df, bad_df])
     if testing is None:
         df.loc[df['class'] == 1, ['component_name']] = 35 # missing
         df.loc[df['class'] == 3, ['component_name']] = 36 # stand
-#     df.loc[df['class'] == 0, 'class'] = 0
-#     df.loc[df['class'] == 1, 'class'] = 1
-#     df.loc[df['class'] == 2, 'class'] = 1
-#     df.loc[df['class'] == 3, 'class'] = 1
-#     df.loc[df['class'] == 4, 'class'] = 1
-#     df.loc[df['class'] == 5, 'class'] = 1
+        df.loc[df['class'] == 2, ['component_name']] = 37 # shift
+        df.loc[df['class'] == 5, ['component_name']] = 38 # short
+        df.loc[df['class'] == 4, ['component_name']] = 39 # broken
 
-
-#     _, _, _, _, _, _, _, train_regroup_df, _ = CreateDataset_regroup(seed ,add_test)
     new_group_component_name = clust.results['filenames']
     new_group_list = list(set(clust.results['labels']))
-#     new_group_list = [ i + 1 for i in new_group_list] 
 
-#     cn = train_regroup_df['component_name'].tolist()
     Counter_cn = Counter(new_group_component_name)
     regroup_df = df.copy()
     new_group=[]
@@ -3169,11 +3129,15 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         for i in label_newgroup:
             
             regroup_df.loc[df['component_name'] == i, ['component_name']] = new_group     
-#         import pdb;pdb.set_trace() 
             
     if testing is None:
         regroup_df.loc[regroup_df['component_name'] == 35, ['component_name']] = missing_label
         regroup_df.loc[regroup_df['component_name'] == 36, ['component_name']] = stand_label
+        regroup_df.loc[regroup_df['component_name'] == 37, ['component_name']] = shift_label
+        regroup_df.loc[regroup_df['component_name'] == 38, ['component_name']] = short_label
+        regroup_df.loc[regroup_df['component_name'] == 39, ['component_name']] = broke_label
+
+
 
     df = regroup_df.copy()
 
@@ -3306,6 +3270,7 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
     good_samples = train_com_df.loc[train_com_df['class']==0]
     missing_samples = train_com_df.loc[(train_com_df['component_name']==missing_label)]
     stand_samples = train_com_df.loc[(train_com_df['component_name']==stand_label)]
+    
     train_com_df = pd.concat([good_samples, missing_samples, stand_samples])
     aaa = Counter(train_com_df['component_name'])
     for i in range(max(aaa)):
@@ -3340,6 +3305,8 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
             train_bad_df=train_bad_df.drop(df_idx)
             train_bad_df = pd.concat([train_bad_df, component])
             
+
+            
     train_df = pd.concat([train_good_df, train_bad_df])
     
     ### val_df
@@ -3364,6 +3331,7 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
             df_idx = val_bad_df[val_bad_df['component_name']==i].index
             val_bad_df=val_bad_df.drop(df_idx)
             val_bad_df = pd.concat([val_bad_df, component])
+
             
     val_df = pd.concat([val_good_df, val_bad_df])
     print("Num of Images in Component Training set: ", sum(train_df['class'].value_counts().tolist()))
