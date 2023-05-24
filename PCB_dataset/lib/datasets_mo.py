@@ -1769,9 +1769,6 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
             
             regroup_df.loc[df['component_name'] == i, ['component_name']] = new_group     
 #         import pdb;pdb.set_trace() 
-            
-
-
     df = regroup_df.copy()
 
     # 將Test set從Training set中移除並重新切割資料集
@@ -3165,13 +3162,13 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         if k in train_component_label:  
             train_component_name.append(v)
     print(train_component_name)
-    
+
     train_df.loc[train_df['class'] == 1, ['component_name']] = missing_label
     train_df.loc[train_df['class'] == 3, ['component_name']] = stand_label
     train_df.loc[train_df['class'] == 2, ['component_name']] = shift_label
     train_df.loc[train_df['class'] == 5, ['component_name']] = short_label
     train_df.loc[train_df['class'] == 4, ['component_name']] = broke_label
-    
+
     # 將一部分的In-distribution old component分出來給val set和test set (ind_val, ind_test)
     train_df, ind_val, ind_test = split_stratified_into_train_val_test(train_df, stratify_colname='component_name', frac_train=0.8, frac_val=0.1, frac_test=0.1, random_state=seed)
 
@@ -3186,12 +3183,13 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         if k in val_component_label:  
             val_component_name.append(v)
     print(val_component_name)
-    
+
     val_df.loc[val_df['class'] == 1, ['component_name']] = missing_label
     val_df.loc[val_df['class'] == 3, ['component_name']] = stand_label
     val_df.loc[val_df['class'] == 2, ['component_name']] = shift_label
     val_df.loc[val_df['class'] == 5, ['component_name']] = short_label
     val_df.loc[val_df['class'] == 4, ['component_name']] = broke_label
+
     val_df = pd.concat([val_df, ind_val])
     
     testDatasetMask = df['component_name'].isin(testComponent)
@@ -3205,12 +3203,13 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
         if k in test_component_label:  
             test_component_name.append(v)
     print(test_component_name)
-    
+
     test_df.loc[test_df['class'] == 1, ['component_name']] = missing_label
     test_df.loc[test_df['class'] == 3, ['component_name']] = stand_label
     test_df.loc[test_df['class'] == 2, ['component_name']] = shift_label
     test_df.loc[test_df['class'] == 5, ['component_name']] = short_label
     test_df.loc[test_df['class'] == 4, ['component_name']] = broke_label
+
     
     test_df = pd.concat([test_df, ind_test])
     
@@ -3221,36 +3220,36 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
                 'Test: \n' + str(test_component_name) +'\n' + str(test_component_label)
                )
     # 用來產生overkill和leakage數值的dataframe    
-    test_df_mapping2_label = test_df.copy()
-    test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 0, 'class'] = 0
-    test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 1, 'class'] = 1
-    test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 2, 'class'] = 1
-    test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 3, 'class'] = 1
-    test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 4, 'class'] = 1
-    test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 5, 'class'] = 1
+#     test_df_mapping2_label = test_df.copy()
+#     test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 0, 'class'] = 0
+#     test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 1, 'class'] = 1
+#     test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 2, 'class'] = 1
+#     test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 3, 'class'] = 1
+#     test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 4, 'class'] = 1
+#     test_df_mapping2_label.loc[test_df_mapping2_label['class'] == 5, 'class'] = 1
 
-    name_of_each_component = test_df_mapping2_label['component_name'].value_counts().index.tolist()
-    num_of_image_in_each_component = test_df_mapping2_label['component_name'].value_counts().values
-    test_component_name_df = pd.DataFrame(list(zip(name_of_each_component, num_of_image_in_each_component)), columns =['component_name', 'total'])
+#     name_of_each_component = test_df_mapping2_label['component_name'].value_counts().index.tolist()
+#     num_of_image_in_each_component = test_df_mapping2_label['component_name'].value_counts().values
+#     test_component_name_df = pd.DataFrame(list(zip(name_of_each_component, num_of_image_in_each_component)), columns =['component_name', 'total'])
 
-    for name in set(test_df_mapping2_label['component_name'].values):
-        temp_data = test_df_mapping2_label.loc[(test_df_mapping2_label["component_name"] == name)]
-        for k, v in zip(temp_data['class'].value_counts().keys(), temp_data['class'].value_counts()):
-            if k == 0:
-                test_component_name_df.loc[test_component_name_df['component_name'] == name, 'good'] = temp_data['class'].value_counts().sort_index().values[0]
-            elif k ==1:
-                try:
-                    test_component_name_df.loc[test_component_name_df['component_name'] == name, 'bad'] = temp_data['class'].value_counts().sort_index().values[1]
-                except:
-                    print(f"{name} only contains bad label.")
-                    test_component_name_df.loc[test_component_name_df['component_name'] == name, 'bad'] = temp_data['class'].value_counts().sort_index().values[0]
-    test_component_name_df['good'] = test_component_name_df['good'].fillna(0).astype(int)
-    test_component_name_df['bad'] = test_component_name_df['bad'].fillna(0).astype(int)
-    test_component_name_df = test_component_name_df[['component_name', 'total', 'good', 'bad']]    
-    col = {'overkill': 0, 'leakage': 0}
-    test_component_name_df = test_component_name_df.assign(**col)
+#     for name in set(test_df_mapping2_label['component_name'].values):
+#         temp_data = test_df_mapping2_label.loc[(test_df_mapping2_label["component_name"] == name)]
+#         for k, v in zip(temp_data['class'].value_counts().keys(), temp_data['class'].value_counts()):
+#             if k == 0:
+#                 test_component_name_df.loc[test_component_name_df['component_name'] == name, 'good'] = temp_data['class'].value_counts().sort_index().values[0]
+#             elif k ==1:
+#                 try:
+#                     test_component_name_df.loc[test_component_name_df['component_name'] == name, 'bad'] = temp_data['class'].value_counts().sort_index().values[1]
+#                 except:
+#                     print(f"{name} only contains bad label.")
+#                     test_component_name_df.loc[test_component_name_df['component_name'] == name, 'bad'] = temp_data['class'].value_counts().sort_index().values[0]
+#     test_component_name_df['good'] = test_component_name_df['good'].fillna(0).astype(int)
+#     test_component_name_df['bad'] = test_component_name_df['bad'].fillna(0).astype(int)
+#     test_component_name_df = test_component_name_df[['component_name', 'total', 'good', 'bad']]    
+#     col = {'overkill': 0, 'leakage': 0}
+#     test_component_name_df = test_component_name_df.assign(**col)
 
-    test_set_class = sorted(test_df['class'].value_counts().keys().tolist())   #由於每個component的label都不一樣，透過這個方式取得該component下的所有label
+#     test_set_class = sorted(test_df['class'].value_counts().keys().tolist())   #由於每個component的label都不一樣，透過這個方式取得該component下的所有label
     print('add_test:',add_test)
     if add_test == True:
         # 取得new component的good sample給component classifier訓練
@@ -3283,8 +3282,11 @@ def CreateDataset_regroup_due_2_sixcls(seed , add_test, testing=None):
     good_samples = train_com_df.loc[train_com_df['class']==0]
     missing_samples = train_com_df.loc[(train_com_df['component_name']==missing_label)]
     stand_samples = train_com_df.loc[(train_com_df['component_name']==stand_label)]
+    shift_samples = train_com_df.loc[(train_com_df['component_name']==shift_label)]
+    short_samples = train_com_df.loc[(train_com_df['component_name']==short_label)]
+    broke_samples = train_com_df.loc[(train_com_df['component_name']==broke_label)]
     
-    train_com_df = pd.concat([good_samples, missing_samples, stand_samples])
+    train_com_df = pd.concat([good_samples, missing_samples, stand_samples, shift_samples, short_samples, broke_samples])
     aaa = Counter(train_com_df['component_name'])
     for i in range(max(aaa)):
         if aaa[i] >10000:
