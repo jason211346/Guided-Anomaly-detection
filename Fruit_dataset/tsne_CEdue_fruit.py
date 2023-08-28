@@ -185,6 +185,17 @@ def set_model(args, args_due,train_com_loader,num_com):
     if args_due.n_inducing_points is None:
         args_due.n_inducing_points = num_classes
     n_inducing_points = args_due.n_inducing_points
+
+    if args_due.coeff == 1:
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif args_due.coeff == 3:
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif args_due.coeff == 5:
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif args_due.coeff == 7:
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif args_due.coeff == 0:
+        from networks.mobilenetv3 import SupConMobileNetV3Large
     
     feature_extractor =  SupConMobileNetV3Large()
 
@@ -269,7 +280,7 @@ if __name__ == "__main__":
         help="Don't use testing set on T-sne",
     )
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
     parser.add_argument("--dropout_rate", type=float, default=0.3, help="Dropout rate")
     parser.add_argument(

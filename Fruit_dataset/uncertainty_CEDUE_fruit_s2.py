@@ -24,10 +24,11 @@ from pprint import pformat
 import logging
 import sys
 from typing import Dict, Any, List, Tuple
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+
 from util_mo import *
 import torch.backends.cudnn as cudnn
 from due import dkl_Phison_mo, dkl_Phison_mo_s2
+
 from lib.datasets_mo import get_dataset
 from gpytorch.likelihoods import SoftmaxLikelihood
 import gpytorch
@@ -89,9 +90,10 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
     model.eval()
     model.to(device)
     likelihood.to(device)
-
+    # we'll store the features as NumPy array of size num_images x feature_size
     uncertainty = None
-
+    
+    # we'll also store the image labels and paths to visualize them later
     labels = []
     image_paths = []
     name_list = []
@@ -106,6 +108,9 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
         except:
             img, target, file_path, name = data
 
+#         feat_list = []
+#         def hook(module, input, output):
+#             feat_list.append(output.clone().detach())
 
         images = img.to(device)
         target = target.squeeze().tolist()
@@ -141,13 +146,17 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
             pass
 
         with torch.no_grad():                
+#             _, output = model_s1(images)
+#             output = model(output)
+
             with gpytorch.settings.num_likelihood_samples(32):
                 _, output = model_s1(images)
                 output = model(output)
                 output = output.to_data_independent_dist()
                 output = likelihood(output).probs.mean(0)
 
-        current_uncertainty = -(output * output.log()).sum(1)
+#         current_uncertainty = -(output * output.log()).sum(1)
+        current_uncertainty = -(output * output.log()).sum(1) / torch.log(torch.tensor(output.shape[1], dtype=torch.float))
 
         current_uncertainty = current_uncertainty.cpu().numpy()
         
@@ -168,9 +177,20 @@ def set_model(args, args_due,train_com_loader , num_com):
         args_due.n_inducing_points = num_classes
     n_inducing_points = args_due.n_inducing_points
     
+    if args_due.coeff == 1:
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif args_due.coeff == 3:
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif args_due.coeff == 5:
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif args_due.coeff == 7:
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif args_due.coeff == 0:
+        from networks.mobilenetv3 import SupConMobileNetV3Large
+    
     feature_extractor =  SupConMobileNetV3Large()
 
-    initial_inducing_points, initial_lengthscale = dkl_Phison_mo.initial_values(
+    initial_inducing_points, initial_lengthscale = dkl_Phison_mo.initial_values3(
             train_com_loader, feature_extractor, n_inducing_points
         )
 
@@ -199,13 +219,13 @@ def set_model(args, args_due,train_com_loader , num_com):
     feature_extractor_s1 = gpmodel_s1.feature_extractor
     feature_extractor_s1.eval()
     
-    initial_inducing_points, initial_lengthscale = dkl_Phison_mo_s2.initial_values(
-        train_com_loader, feature_extractor_s1, n_inducing_points*50 
+    initial_inducing_points, initial_lengthscale = dkl_Phison_mo_s2.initial_values3(
+        train_com_loader, feature_extractor_s1, n_inducing_points*50 # if hparams.n_inducing_points= none ,hparams.n_inducing_points = num_class
     )
     
     print('initial_inducing_points : ', initial_inducing_points.shape)
     gp = dkl_Phison_mo_s2.GP(
-        num_outputs=num_classes, 
+        num_outputs=num_classes, #可能=conponent 數量 = 23個 
         initial_lengthscale=initial_lengthscale,
         initial_inducing_points=initial_inducing_points,
         kernel=args_due.kernel,
@@ -310,7 +330,7 @@ if __name__ == "__main__":
         help="Don't inference",
     )
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
     parser.add_argument("--dropout_rate", type=float, default=0.3, help="Dropout rate")
     parser.add_argument(
@@ -325,7 +345,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         default="fruit_8",
-        choices=['fruit_8'],
+        choices=["CIFAR10", "CIFAR100", "PHISON",'PHISON_regroup'],
         help="Pick a dataset",
     )
     parser.add_argument('--batch_size', type=int, default=128,
@@ -378,54 +398,40 @@ if __name__ == "__main__":
 
     # Initialize dataset and dataloader
     df = pd.read_json(f"./bay_other_dataset/{args_due.output_inference_dir}_tau1_tau2_logs.json",lines=True)
-
     std_threshold_dict = df.iloc[df['target'].idxmax()].tolist()[1]
 
-    exp_2_tau1 = std_threshold_dict['exp_2_tau1']
-    exp_2_tau2 = std_threshold_dict['exp_2_tau2']
+#     exp_2_tau1 = std_threshold_dict['exp_2_tau1'] 
+#     exp_2_tau2 = std_threshold_dict['exp_2_tau2']
+    com_0_tau1 = std_threshold_dict['com_0_tau1']
+    com_0_tau2 = std_threshold_dict['com_0_tau2']
+    com_1_tau1 = std_threshold_dict['com_1_tau1']
+    com_1_tau2 = std_threshold_dict['com_1_tau2']
+    com_2_tau1 = std_threshold_dict['com_2_tau1']
+    com_2_tau2 = std_threshold_dict['com_2_tau2']
+    com_3_tau1 = std_threshold_dict['com_3_tau1']
+    com_3_tau2 = std_threshold_dict['com_3_tau2']
+    com_4_tau1 = std_threshold_dict['com_4_tau1']
+    com_4_tau2 = std_threshold_dict['com_4_tau2']
+    com_5_tau1 = std_threshold_dict['com_5_tau1']
+    com_5_tau2 = std_threshold_dict['com_5_tau2']
+    com_6_tau1 = std_threshold_dict['com_6_tau1']
+    com_6_tau2 = std_threshold_dict['com_6_tau2']
+    com_7_tau1 = std_threshold_dict['com_7_tau1']
+    com_7_tau2 = std_threshold_dict['com_7_tau2']
 
-    print('exp_2_tau1 : ',exp_2_tau1)
-    print('exp_2_tau2 : ',exp_2_tau2)
 
     df_train = pd.DataFrame()
     
-    add_test=True    
-    if args_due.dataset == 'fruit_8':
-        
-        # load data
-        ds = get_dataset(args_due.dataset ,args_due.random_seed , root="./data" )
-    #     input_size, num_classes, train_dataset, test_dataset, train_loader, train_com_loader = ds
-        input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset, test_com_dataset = ds
+    df_train = df_train.append({'com':0,'TH':com_0_tau1 , 'TH_2':com_0_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':1,'TH':com_1_tau1 , 'TH_2':com_1_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':2,'TH':com_2_tau1 , 'TH_2':com_2_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':3,'TH':com_3_tau1 , 'TH_2':com_3_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':4,'TH':com_4_tau1 , 'TH_2':com_4_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':5,'TH':com_5_tau1 , 'TH_2':com_5_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':6,'TH':com_6_tau1 , 'TH_2':com_6_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':7,'TH':com_7_tau1 , 'TH_2':com_7_tau2 }, ignore_index=True)
 
-        # Intialize model
-        feature_extractor_s1, model ,likelihood  = set_model(args, args_due, train_com_loader , num_classes)
-        
-        _ ,_ ,_, _, _ ,_,_ ,_,train_com_df, train_df, val_df , _ = get_fruit_8(root="./data" , seed=args["random_seed"])
-
-    train_val_df = pd.concat([train_df, val_df])
     
-    for idx, component_name in enumerate(range(num_classes)):
-        train_val_loader  = CreateDataset_for_each_component_regroup(args["random_seed"],  train_val_df,component_name)
-
-        if args_due.test_uncertainty == True:
-            # Calculate uncertainty from images in reference set
-
-            uncertainty, labels_train, _, name_list_train, _, _ = get_uncertainty(feature_extractor_s1, model, likelihood, train_val_loader, tsne=True)
-
-            uncertainty_mean = np.mean(uncertainty , axis=0)
-            uncertainty_std = np.std(uncertainty , axis=0)
-            print('uncertainty_mean : ',uncertainty_mean)
-            print('uncertainty_std : ',uncertainty_std)
-
-            uncertainty_th = uncertainty_mean + (exp_2_tau1 * uncertainty_std)
-            uncertainty_th_2 = uncertainty_mean + (exp_2_tau2 * uncertainty_std)
-
-
-            df_train = df_train.append({'com':component_name,'TH':uncertainty_th, 'TH_2':uncertainty_th_2 }, ignore_index=True)
-
-
-        else:
-            print('Uncertainty calculations are not performed')
             
     filepath = f'./output/{args_due.output_inference_dir}/uncertainty.csv'
     df_train.to_csv(filepath)

@@ -9,8 +9,54 @@ import torch
 import torch.nn as nn
 import math
 import torch.nn.functional as F
+from torch.nn.utils import spectral_norm
+from due.layers import spectral_norm_conv, spectral_norm_fc, SpectralBatchNorm2d
 
 __all__ = ['mobilenetv3_large', 'mobilenetv3_small']
+
+def wrapped_conv(in_c, out_c, kernel_size, stride, padding, bias):
+    input_size=224
+    padding = 1 if kernel_size == 3 else 0
+    n_power_iterations=1
+    coeff = 3
+    conv = nn.Conv2d(in_c, out_c, kernel_size, stride, padding, bias=False)
+
+#     if not spectral_conv:
+#         return conv
+
+    if kernel_size == 1:
+        # use spectral norm fc, because bound are tight for 1x1 convolutions
+        wrapped_conv = spectral_norm_fc(conv, coeff, n_power_iterations)
+    else:
+        # Otherwise use spectral norm conv, with loose bound
+        input_dim = (in_c, input_size, input_size)
+        wrapped_conv = spectral_norm_conv(
+            conv, coeff, input_dim, n_power_iterations
+        )
+
+    return wrapped_conv
+
+# def wrapped_conv_group(in_c, out_c, kernel_size, stride, padding, groups, bias):
+#     input_size=224
+#     padding = 1 if kernel_size == 3 else 0
+#     n_power_iterations=1
+#     coeff = 3
+#     conv = nn.Conv2d(in_c, out_c, kernel_size, stride, padding, groups, bias=False)
+
+# #     if not spectral_conv:
+# #         return conv
+
+#     if kernel_size == 1:
+#         # use spectral norm fc, because bound are tight for 1x1 convolutions
+#         wrapped_conv = spectral_norm_fc(conv, coeff, n_power_iterations)
+#     else:
+#         # Otherwise use spectral norm conv, with loose bound
+#         input_dim = (in_c, input_size, input_size)
+#         wrapped_conv = spectral_norm_conv(
+#             conv, coeff, input_dim, n_power_iterations
+#         )
+
+#     return wrapped_conv
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -71,7 +117,7 @@ class SELayer(nn.Module):
 
 def conv_3x3_bn(inp, oup, stride):
     return nn.Sequential(
-        nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
+        wrapped_conv(inp, oup, 3, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
         h_swish()
     )
@@ -79,7 +125,7 @@ def conv_3x3_bn(inp, oup, stride):
 
 def conv_1x1_bn(inp, oup):
     return nn.Sequential(
-        nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+        wrapped_conv(inp, oup, 1, 1, 0, bias=False),
         nn.BatchNorm2d(oup),
         h_swish()
     )
@@ -95,29 +141,29 @@ class InvertedResidual(nn.Module):
         if inp == hidden_dim:
             self.conv = nn.Sequential(
                 # dw
-                nn.Conv2d(hidden_dim, hidden_dim, kernel_size, stride, (kernel_size - 1) // 2, groups=hidden_dim, bias=False),
+                spectral_norm(nn.Conv2d(hidden_dim, hidden_dim, kernel_size, stride, (kernel_size - 1) // 2, groups=hidden_dim, bias=False)),
                 nn.BatchNorm2d(hidden_dim),
                 h_swish() if use_hs else nn.ReLU(inplace=True),
                 # Squeeze-and-Excite
                 SELayer(hidden_dim) if use_se else nn.Identity(),
                 # pw-linear
-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+                wrapped_conv(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
             )
         else:
             self.conv = nn.Sequential(
                 # pw
-                nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
+                wrapped_conv(inp, hidden_dim, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(hidden_dim),
                 h_swish() if use_hs else nn.ReLU(inplace=True),
                 # dw
-                nn.Conv2d(hidden_dim, hidden_dim, kernel_size, stride, (kernel_size - 1) // 2, groups=hidden_dim, bias=False),
+                spectral_norm(nn.Conv2d(hidden_dim, hidden_dim, kernel_size, stride, (kernel_size - 1) // 2, groups=hidden_dim, bias=False)),
                 nn.BatchNorm2d(hidden_dim),
                 # Squeeze-and-Excite
                 SELayer(hidden_dim) if use_se else nn.Identity(),
                 h_swish() if use_hs else nn.ReLU(inplace=True),
                 # pw-linear
-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+                wrapped_conv(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
             )
 
@@ -129,7 +175,7 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV3(nn.Module):
-    def __init__(self, cfgs, mode='large', num_classes=1000, width_mult=1.):
+    def __init__(self, cfgs, mode='large', num_classes=960, width_mult=1.):
         super(MobileNetV3, self).__init__()
         # setting of inverted residual blocks
         self.cfgs = cfgs
@@ -230,16 +276,16 @@ class SupConMobileNetV3Large(nn.Module):
     def __init__(self, name='mobilenetv3_large', pretrained="mobilenetv3-large-1cd25616.pth", feat_dim=512, num_classes=2):
         super(SupConMobileNetV3Large, self).__init__()
         model_fun, _ = model_dict[name]
-        
-        if pretrained:
-            print("Load ImageNet pre-trained MobileNetV3 Large model")
-            self.encoder = model_fun()
-            self.encoder.load_state_dict(torch.load(pretrained))
-            self.encoder.classifier = nn.Identity()
-        else:
-            print("Training from scratch")
-            self.encoder = model_fun()
 
+#         if pretrained:
+#             print("Load ImageNet pre-trained MobileNetV3 Large model")
+#             self.encoder = model_fun()
+#             self.encoder.load_state_dict(torch.load(pretrained))
+#             self.encoder.classifier = nn.Identity()
+#         else:
+        print("Training from scratch")
+        self.encoder = model_fun()
+        self.encoder.classifier = nn.Identity()
 #         self.embedding = nn.Sequential(
 #             nn.Linear(960, 512),
 #         )        

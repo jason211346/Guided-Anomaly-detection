@@ -19,14 +19,13 @@ from gpytorch.mlls import VariationalELBO
 from gpytorch.likelihoods import SoftmaxLikelihood
 
 from due import dkl_Phison_mo
-
+# from due.wide_resnet_Phison import WideResNet
 from due.sngp import Laplace
 
 from lib.datasets_mo import get_dataset
+from lib.evaluate_ood_Phison import get_ood_metrics
 from lib.utils import get_results_directory, Hyperparameters, set_seed
 from pytorch_metric_learning import samplers
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
-
 import os
 
 
@@ -34,12 +33,25 @@ import os
 torch.backends.cudnn.benchmark = True
 
 def set_model(opt):
+    
+    if opt.coeff ==1 :
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif opt.coeff ==3 :
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif opt.coeff ==5 :
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif opt.coeff ==7 :
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif opt.coeff ==0 :
+        from networks.mobilenetv3 import SupConMobileNetV3Large
+    
     model = SupConMobileNetV3Large()
-
+#     model = resnet50()
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
             model.encoder = torch.nn.DataParallel(model.encoder)
         model = model.cuda()
+#         criterion_com = torch.nn.CrossEntropyLoss().cuda()
         criterion_cls = torch.nn.CrossEntropyLoss().cuda()
         
     return model, criterion_cls
@@ -51,13 +63,17 @@ def main(hparams):
     hparams.seed = set_seed(hparams.seed)
 
     ds = get_dataset(hparams.dataset,hparams.seed, root=hparams.data_root)
+#     input_size, num_classes, train_dataset, test_dataset, train_loader, train_com_loader = ds
+
     input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset, test_com_dataset = ds
+    
     
 
     if hparams.n_inducing_points is None:
         hparams.n_inducing_points = num_classes
         
-
+    if hparams.n_inducing_points_cls is None:
+        hparams.n_inducing_points_cls = 20
 
     print(f"Training with {hparams}")
     hparams.save(results_dir / "hparams.json")
@@ -70,7 +86,7 @@ def main(hparams):
     
     
     initial_inducing_points, initial_lengthscale = dkl_Phison_mo.initial_values(
-        train_com_loader, model, hparams.n_inducing_points*30 # if hparams.n_inducing_points= none ,hparams.n_inducing_points = num_class
+        train_com_loader, model, hparams.n_inducing_points # if hparams.n_inducing_points= none ,hparams.n_inducing_points = num_class
     )
     
     print('initial_inducing_points : ', initial_inducing_points.shape)
@@ -174,7 +190,7 @@ def main(hparams):
 
         x2, y2 = x2.cuda(), y2.cuda()
         _, y_com = model(x2)
-
+#         import pdb;pdb.set_trace()
         loss_com = loss_fn(y_com, y2)
         
         loss_com.backward()
@@ -215,9 +231,7 @@ def main(hparams):
             y_cls, y_com = model(x)   
             
         return y_cls, gt_cls
-
-
-#     
+    
 
     evaluator = Engine(eval_step)
     evaluator2 = Engine(eval_step2)
@@ -242,6 +256,7 @@ def main(hparams):
 
     metric = Accuracy()
     metric.attach(evaluator2, "accuracy_cls")
+
 
     metric = Loss(lambda y_pred, y: -likelihood.expected_log_prob(y, y_pred).mean())
     metric.attach(evaluator, "loss")
@@ -277,7 +292,6 @@ def main(hparams):
 
         writer.add_scalar("Loss/train", train_loss, trainer.state.epoch)
 
-
         evaluator.run(test_com_loader)
         metrics = evaluator.state.metrics
         acc = metrics["accuracy"]
@@ -302,15 +316,11 @@ def main(hparams):
         writer.add_scalar("Accuracy/test", acc, trainer.state.epoch)
         writer.add_scalar("Accuracy_cls/test", acc_cls, trainer.state.epoch)
 
-
         scheduler.step()
         scheduler2.step()
 
     pbar = ProgressBar(dynamic_ncols=True)
     pbar.attach(trainer)
-
-
-
     
     
 
@@ -318,7 +328,7 @@ def main(hparams):
     to_save = {'model': model}
             
     def run_validation(engine):
-
+#         evaluator.run(test_loader)
         metrics = evaluator.state.metrics
         val_com_loss = metrics["loss"]
         evaluator2.run(test_loader)
@@ -340,9 +350,9 @@ def main(hparams):
     
         # --- Early_stopping ---
 
-    handler = EarlyStopping(patience=15, score_function=run_validation, trainer=trainer)
-    # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
-    evaluator.add_event_handler(Events.COMPLETED, handler)
+#     handler = EarlyStopping(patience=15, score_function=run_validation, trainer=trainer)
+#     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
+#     evaluator.add_event_handler(Events.COMPLETED, handler)
 
     trainer.run(data,  max_epochs=50)
     # Done training - time to evaluate
@@ -351,10 +361,6 @@ def main(hparams):
     torch.save(model.state_dict(), results_dir / "model.pt")
     if likelihood is not None:
         torch.save(likelihood.state_dict(), results_dir / "likelihood.pt")
-        
-        
-        
-    
 
     writer.close()
 
@@ -425,7 +431,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=1 , help="Seed to use for training")
 
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
 
     parser.add_argument(
