@@ -33,6 +33,16 @@ import os
 torch.backends.cudnn.benchmark = True
 
 def set_model(opt):
+    if opt.coeff ==1 :
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif opt.coeff ==3 :
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif opt.coeff ==5 :
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif opt.coeff ==7 :
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif opt.coeff ==0 :
+        from networks.mobilenetv3 import SupConMobileNetV3Large
     model = SupConMobileNetV3Large()
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
@@ -411,7 +421,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=1 , help="Seed to use for training")
 
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
 
     parser.add_argument(
