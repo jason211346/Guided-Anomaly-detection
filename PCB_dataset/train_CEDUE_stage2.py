@@ -24,7 +24,7 @@ from due.sngp import Laplace
 from lib.datasets_mo import get_dataset
 from lib.utils import get_results_directory, Hyperparameters, set_seed
 from pytorch_metric_learning import samplers
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+# from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
 
 import os
 
@@ -33,6 +33,17 @@ import os
 torch.backends.cudnn.benchmark = True
 
 def set_gpmodel(hparams, train_com_loader, train_com_dataset, num_classes):
+
+    if hparams.coeff ==1 :
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif hparams.coeff ==3 :
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif hparams.coeff ==5 :
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif hparams.coeff ==7 :
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif hparams.coeff ==0 :
+        from networks.mobilenetv3 import SupConMobileNetV3Large
     # stage 1
     print('load model stage 1')
     feature_extractor = SupConMobileNetV3Large()
@@ -381,7 +392,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=1 , help="Seed to use for training")
 
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
 
     parser.add_argument(

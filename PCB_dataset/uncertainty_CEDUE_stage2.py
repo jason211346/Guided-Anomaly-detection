@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+# https://github.com/QuocThangNguyen/deep-metric-learning-tsinghua-dogs/blob/master/src/scripts/visualize_tsne.py
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -24,11 +25,11 @@ from pprint import pformat
 import logging
 import sys
 from typing import Dict, Any, List, Tuple
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+# from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
 from util_mo import *
 import torch.backends.cudnn as cudnn
 from due import dkl_Phison_mo, dkl_Phison_mo_s2
-
+# from due.wide_resnet_Phison_old import WideResNet
 from lib.datasets_mo import get_dataset
 from gpytorch.likelihoods import SoftmaxLikelihood
 import gpytorch
@@ -39,7 +40,8 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
-
+# plt.rcParams['figure.figsize'] = (32, 32)
+# plt.rcParams['figure.dpi'] = 150
 
 def set_random_seed(seed: int) -> None:
     """
@@ -65,9 +67,10 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
     model.eval()
     model.to(device)
     likelihood.to(device)
-
+    # we'll store the features as NumPy array of size num_images x feature_size
     uncertainty = None
-
+    
+    # we'll also store the image labels and paths to visualize them later
     labels = []
     image_paths = []
     name_list = []
@@ -81,6 +84,10 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
             img, target, file_path, name, full_name = data
         except:
             img, target, file_path, name = data
+
+#         feat_list = []
+#         def hook(module, input, output):
+#             feat_list.append(output.clone().detach())
 
         images = img.to(device)
         target = target.squeeze().tolist()
@@ -116,14 +123,18 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
             pass
 
         with torch.no_grad():                
+#             _, output = model_s1(images)
+#             output = model(output)
+
             with gpytorch.settings.num_likelihood_samples(32):
                 _, output = model_s1(images)
+#                 import pdb;pdb.set_trace()
                 output = model(output)
                 output = output.to_data_independent_dist()
                 output = likelihood(output).probs.mean(0)
-
-        current_uncertainty = -(output * output.log()).sum(1)
-
+#         import pdb;pdb.set_trace()
+#         current_uncertainty = -(output * output.log()).sum(1)
+        current_uncertainty = -(output * output.log()).sum(1) / torch.log(torch.tensor(output.shape[1], dtype=torch.float))
         current_uncertainty = current_uncertainty.cpu().numpy()
         
         if uncertainty is not None:
@@ -141,6 +152,17 @@ def set_model(args, args_due,train_com_loader , num_com):
     if args_due.n_inducing_points is None:
         args_due.n_inducing_points = num_classes
     n_inducing_points = args_due.n_inducing_points
+    
+    if args_due.coeff == 1:
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif args_due.coeff == 3:
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif args_due.coeff == 5:
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif args_due.coeff == 7:
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif args_due.coeff == 0:
+        from networks.mobilenetv3 import SupConMobileNetV3Large
     
     feature_extractor =  SupConMobileNetV3Large()
 
@@ -281,7 +303,7 @@ if __name__ == "__main__":
         help="Don't inference",
     )
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
     parser.add_argument("--dropout_rate", type=float, default=0.3, help="Dropout rate")
     parser.add_argument(
@@ -352,59 +374,57 @@ if __name__ == "__main__":
     df = pd.read_json(f"./bay/{args_due.output_inference_dir}_tau1_tau2_logs.json",lines=True)
     std_threshold_dict = df.iloc[df['target'].idxmax()].tolist()[1]
 
-    exp_2_tau1 = std_threshold_dict['exp_2_tau1'] 
-    exp_2_tau2 = std_threshold_dict['exp_2_tau2']
-
-    print('exp_2_tau1 : ' ,exp_2_tau1)
-    print('exp_2_tau2 : ' ,exp_2_tau2)
+#     exp_2_tau1 = std_threshold_dict['exp_2_tau1'] 
+#     exp_2_tau2 = std_threshold_dict['exp_2_tau2']
+    com_0_tau1 = std_threshold_dict['com_0_tau1']
+    com_0_tau2 = std_threshold_dict['com_0_tau2']
+    com_1_tau1 = std_threshold_dict['com_1_tau1']
+    com_1_tau2 = std_threshold_dict['com_1_tau2']
+    com_2_tau1 = std_threshold_dict['com_2_tau1']
+    com_2_tau2 = std_threshold_dict['com_2_tau2']
+    com_3_tau1 = std_threshold_dict['com_3_tau1']
+    com_3_tau2 = std_threshold_dict['com_3_tau2']
+    com_4_tau1 = std_threshold_dict['com_4_tau1']
+    com_4_tau2 = std_threshold_dict['com_4_tau2']
+    com_5_tau1 = std_threshold_dict['com_5_tau1']
+    com_5_tau2 = std_threshold_dict['com_5_tau2']
+    com_6_tau1 = std_threshold_dict['com_6_tau1']
+    com_6_tau2 = std_threshold_dict['com_6_tau2']
+    com_7_tau1 = std_threshold_dict['com_7_tau1']
+    com_7_tau2 = std_threshold_dict['com_7_tau2']
+    com_8_tau1 = std_threshold_dict['com_8_tau1']
+    com_8_tau2 = std_threshold_dict['com_8_tau2']
+    com_9_tau1 = std_threshold_dict['com_9_tau1']
+    com_9_tau2 = std_threshold_dict['com_9_tau2']
+    com_10_tau1 = std_threshold_dict['com_10_tau1']
+    com_10_tau2 = std_threshold_dict['com_10_tau2']
+    com_11_tau1 = std_threshold_dict['com_11_tau1']
+    com_11_tau2 = std_threshold_dict['com_11_tau2']
+    com_12_tau1 = std_threshold_dict['com_12_tau1']
+    com_12_tau2 = std_threshold_dict['com_12_tau2']
+    com_13_tau1 = std_threshold_dict['com_13_tau1']
+    com_13_tau2 = std_threshold_dict['com_13_tau2']
+    com_14_tau1 = std_threshold_dict['com_14_tau1']
+    com_14_tau2 = std_threshold_dict['com_14_tau2']
 
     df_train = pd.DataFrame()
     
-    add_test=True
-        
-    if args_due.dataset == 'PHISON':
-        ds = get_dataset(args_due.dataset ,args_due.random_seed , root="./data" )
-        input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset = ds
+    df_train = df_train.append({'com':0,'TH':com_0_tau1 , 'TH_2':com_0_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':1,'TH':com_1_tau1 , 'TH_2':com_1_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':2,'TH':com_2_tau1 , 'TH_2':com_2_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':3,'TH':com_3_tau1 , 'TH_2':com_3_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':4,'TH':com_4_tau1 , 'TH_2':com_4_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':5,'TH':com_5_tau1 , 'TH_2':com_5_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':6,'TH':com_6_tau1 , 'TH_2':com_6_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':7,'TH':com_7_tau1 , 'TH_2':com_7_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':8,'TH':com_8_tau1 , 'TH_2':com_8_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':9,'TH':com_9_tau1 , 'TH_2':com_9_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':10,'TH':com_10_tau1 , 'TH_2':com_10_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':11,'TH':com_11_tau1 , 'TH_2':com_11_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':12,'TH':com_12_tau1 , 'TH_2':com_12_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':13,'TH':com_13_tau1 , 'TH_2':com_13_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':14,'TH':com_14_tau1 , 'TH_2':com_14_tau2 }, ignore_index=True)
 
-        # Intialize model
-        model ,likelihood  = set_model(args, args_due, train_com_loader , num_classes)
-        
-        train_df, val_df, _, _, _, _, _ = CreateDataset_relabel(args["random_seed"], testing=None)    
-
-    if args_due.dataset == 'PHISON_regroup3':
-        
-        # load data
-        ds = get_dataset(args_due.dataset ,args_due.random_seed , root="./data" )
-        input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset, train_com_dataset, test_com_dataset = ds
-
-        # Intialize model
-        feature_extractor_s1, model ,likelihood  = set_model(args, args_due, train_com_loader , num_classes)
-        train_df, val_df, _, _, _, _, _ = CreateDataset_regroup_due_2_seed1212(args["random_seed"], add_test)
-
-    train_val_df = pd.concat([train_df, val_df])
-    
-    for idx, component_name in enumerate(range(num_classes)):
-        train_val_loader  = CreateDataset_for_each_component_regroup(args["random_seed"],  train_val_df,component_name)
-
-        if args_due.test_uncertainty == True:
-            # Calculate uncertainty from images in reference set
-
-            uncertainty, labels_train, _, name_list_train, _, _ = get_uncertainty(feature_extractor_s1, model, likelihood, train_val_loader, tsne=True)
-
-            uncertainty_mean = np.mean(uncertainty , axis=0)
-            uncertainty_std = np.std(uncertainty , axis=0)
-            print('uncertainty_mean : ',uncertainty_mean)
-            print('uncertainty_std : ',uncertainty_std)
-
-            uncertainty_th = uncertainty_mean + (exp_2_tau1 * uncertainty_std)
-            uncertainty_th_2 = uncertainty_mean + (exp_2_tau2 * uncertainty_std)
-
-
-            df_train = df_train.append({'com':component_name,'TH':uncertainty_th , 'TH_2':uncertainty_th_2 }, ignore_index=True)
-
-
-        else:
-            print('Uncertainty calculations are not performed')
             
     filepath = f'./output/{args_due.output_inference_dir}/uncertainty.csv'
     df_train.to_csv(filepath)

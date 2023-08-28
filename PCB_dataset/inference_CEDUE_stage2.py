@@ -3,7 +3,7 @@
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
+import time
 import numpy as np
 import cv2
 import torch
@@ -25,17 +25,27 @@ from pprint import pformat
 import logging
 import sys
 from typing import Dict, Any, List, Tuple
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+# from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
 from util_mo import *
 import torch.backends.cudnn as cudnn
 from due import dkl_Phison_mo, dkl_Phison_mo_s2
-
+# from due.wide_resnet_Phison_old import WideResNet
 from lib.datasets_mo import get_dataset
 
 from gpytorch.likelihoods import SoftmaxLikelihood
 import gpytorch
 
 from tqdm import tqdm
+
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s  %(name)s  %(levelname)s: %(message)s',
+#     datefmt='%y-%b-%d %H:%M:%S',
+#     handlers=[logging.StreamHandler(sys.stdout)]
+# )
+
+# plt.rcParams['figure.figsize'] = (32, 32)
+# plt.rcParams['figure.dpi'] = 150
 
 def set_random_seed(seed: int) -> None:
     """
@@ -63,6 +73,10 @@ def set_loader(args_due):
         normalize,
     ])
     if args_due.dataset2 == 'phison':
+        if args_due.dataset == 'PHISON_regroup':
+            train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df = CreateDataset_regroup_due(args_due.random_seed,add_test=True) 
+        if args_due.dataset == 'PHISON_regroup2':
+            train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df = CreateDataset_regroup_due_2(args_due.random_seed,add_test=True, testing=None) 
         if args_due.dataset == 'PHISON':
             train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df = CreateDataset_relabel(args_due.random_seed, testing=None)  
         if args_due.dataset == 'PHISON_regroup3':
@@ -73,6 +87,8 @@ def set_loader(args_due):
         test_dataset = CustomDataset(test_df, transform=val_transform)
         
         train_val_dataset = torch.utils.data.ConcatDataset([train_dataset, val_dataset])
+
+#         test_df = pd.concat([train_df, val_df])
 
         test_df_mapping2_label = test_df.copy()    
         name_of_each_component = test_df_mapping2_label['component_name'].value_counts().index.tolist()
@@ -126,9 +142,20 @@ def set_model(args, args_due,train_com_loader , num_com):
         args_due.n_inducing_points = num_classes
     n_inducing_points = args_due.n_inducing_points
     
+    if args_due.coeff == 1:
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif args_due.coeff == 3:
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif args_due.coeff == 5:
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif args_due.coeff == 7:
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif args_due.coeff == 0:
+        from networks.mobilenetv3 import SupConMobileNetV3Large
+    
     feature_extractor =  SupConMobileNetV3Large()
 
-    initial_inducing_points, initial_lengthscale = dkl_Phison_mo.initial_values(
+    initial_inducing_points, initial_lengthscale = dkl_Phison_mo.initial_values3(
             train_com_loader, feature_extractor, n_inducing_points
         )
 
@@ -183,7 +210,7 @@ def set_model(args, args_due,train_com_loader , num_com):
     
     return feature_extractor_s1, gpmodel, likelihood
 
-# 
+#
 
 def calculatePerformance(df, file_name):
     df['overkill_rate'] = (df['overkill'] / df['total'] * 100).round(decimals = 5).astype(str) + '%'
@@ -296,22 +323,29 @@ def EXP2(args_due , model_s1,model ,test_loader ,df ,train_component_label, val_
                 component_out = component_out.to_data_independent_dist()
                 component_out = likelihood(component_out).probs.mean(0)
             
-            current_uncertainty = -(component_out * component_out.log()).sum(1)
+#             current_uncertainty = -(component_out * component_out.log()).sum(1)
+            current_uncertainty = -(component_out * component_out.log()).sum(1) / torch.log(torch.tensor(component_out.shape[1], dtype=torch.float))
             
             
             _, prediction=torch.max(component_out.data, 1)
-        
+#             prediction = [21 if x >= 21 else x for x in prediction]
+#             component_name = [21 if x >= 21 else x for x in component_name]
+            
+            
             unk_list=[]
             bad_list=[]
             for i in range(len(current_uncertainty)):
                 uncertainty_th = TH[prediction[i].item()]
                 uncertainty_th_2 = TH_2[prediction[i].item()]
-                
+
+#                 if current_uncertainty[i]>=uncertainty_th :
+#                     bad_list.append(i)
                 if current_uncertainty[i]>=uncertainty_th and current_uncertainty[i]<=uncertainty_th_2:
                     bad_list.append(i)
                 if current_uncertainty[i]>uncertainty_th_2:
                     unk_list.append(i)
-
+#                 if current_uncertainty[i]>=uncertainty_th :
+#                     bad_list.append(i)
                 
                     
 
@@ -322,12 +356,18 @@ def EXP2(args_due , model_s1,model ,test_loader ,df ,train_component_label, val_
             for i in unk_list:
                 prediction[i] = 2   
 
+#             acc1 = accuracy(component_out, component_name, topk=(1))
+#             top1.update(acc1[0].item(), bsz)
+#             import pdb;pdb.set_trace()
+#             y_pred.extend(prediction.view(-1).detach().cpu().numpy())
             y_true.extend(labels.view(-1).detach().cpu().numpy())
             y_com.extend(component_name)
+#             y_com.extend(component_name.view(-1).detach().cpu().numpy())
+            
 
-
+            
             prediction=torch.Tensor(prediction)
-
+#             import pdb;pdb.set_trace()
             y_pred.extend(prediction.view(-1).detach().cpu().numpy())
              
             # ALL test samples 
@@ -385,7 +425,7 @@ def HybridExpert(y_pred_expert1, y_pred_expert2, y_true, name_label_list,  df, a
     for idx, (pred_expert1, pred_expert2, gt_label, name) in enumerate(list(zip(y_pred_expert1, y_pred_expert2, y_true, name_label_list))):
         name = np.int64(name.item())
         if (pred_expert1 != pred_expert2) or (pred_expert2 ==2):
-
+#             import pdb;pdb.set_trace()
             y_pred_all.append(2)
             y_true_all.append(gt_label)
             
@@ -418,6 +458,10 @@ def HybridExpert(y_pred_expert1, y_pred_expert2, y_true, name_label_list,  df, a
 
 
 if __name__ == "__main__":
+
+
+    start = time.time()
+
     parser = argparse.ArgumentParser(description="Visualizing embeddings with T-SNE")
 
     parser.add_argument(
@@ -482,7 +526,7 @@ if __name__ == "__main__":
         help="Don't inference",
     )
     parser.add_argument(
-        "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+        "--coeff", type=float, default=1, help="Spectral normalization coefficient"
     )
     parser.add_argument("--dropout_rate", type=float, default=0.3, help="Dropout rate")
     parser.add_argument(
@@ -500,7 +544,7 @@ if __name__ == "__main__":
         choices=["CIFAR10", "CIFAR100", "PHISON",'PHISON_regroup','PHISON_regroup2','PHISON_regroup3'],
         help="Pick a dataset",
     )
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=128,
                         help='batch_size')
     parser.add_argument('--num_workers', type=int, default=8,
                         help='num of workers to use')
@@ -545,10 +589,12 @@ if __name__ == "__main__":
     
     checkpoint_path: str = args["checkpoint_path"]
     checkpoint: Dict[str, Any] = torch.load(checkpoint_path, map_location="cuda:0")
+#     checkpoint: Dict[str, Any] = torch.load(checkpoint_path, map_location="cpu")
     logging.info(f"Loaded checkpoint at {args['checkpoint_path']}")
     
     # load data
     ds = get_dataset(args_due.dataset ,args_due.random_seed , root="./data" )
+#     input_size, num_classes, train_dataset, test_dataset, train_loader, train_com_loader = ds
     input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset,_ = ds
     
     # Intialize model
@@ -584,5 +630,10 @@ if __name__ == "__main__":
         HybridExpert(y_pred_expert1, y_pred_expert2, y_true, name_label_list, test_component_name_df_HybridExpert, args_due, train_component_label, val_component_label, test_component_label)
     else:
         print('inference calculations are not performed')
+        
+
+    end = time.time()
+
+    print("執行時間：%f 秒" % (end - start))
 
     

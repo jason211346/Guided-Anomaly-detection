@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# https://github.com/QuocThangNguyen/deep-metric-learning-tsinghua-dogs/blob/master/src/scripts/visualize_tsne.py
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -26,9 +26,10 @@ from pprint import pformat
 import logging
 import sys
 from typing import Dict, Any, List, Tuple
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+# from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
 from util_mo import *
 from due import dkl_Phison_mo, dkl_Phison_mo_s2
+# from due.wide_resnet_Phison_old import WideResNet
 from lib.datasets_mo import get_dataset
 from gpytorch.likelihoods import SoftmaxLikelihood
 import gpytorch
@@ -49,7 +50,21 @@ logging.basicConfig(
 # plt.rcParams['figure.dpi'] = 150
 
 pbounds = {
-           'exp_2_tau1': (0, 15), 'exp_2_tau2': (0, 15),
+           'com_0_tau1': (0, 1), 'com_0_tau2': (0, 1),
+    'com_1_tau1': (0, 1), 'com_1_tau2': (0, 1),
+    'com_2_tau1': (0, 1), 'com_2_tau2': (0, 1),
+    'com_3_tau1': (0, 1), 'com_3_tau2': (0, 1),
+    'com_4_tau1': (0, 1), 'com_4_tau2': (0, 1),
+    'com_5_tau1': (0, 1), 'com_5_tau2': (0, 1),
+    'com_6_tau1': (0, 1), 'com_6_tau2': (0, 1),
+    'com_7_tau1': (0, 1), 'com_7_tau2': (0, 1),
+    'com_8_tau1': (0, 1), 'com_8_tau2': (0, 1),
+    'com_9_tau1': (0, 1), 'com_9_tau2': (0, 1),
+    'com_10_tau1': (0, 1), 'com_10_tau2': (0, 1),
+    'com_11_tau1': (0, 1), 'com_11_tau2': (0, 1),
+    'com_12_tau1': (0, 1), 'com_12_tau2': (0, 1),
+    'com_13_tau1': (0, 1), 'com_13_tau2': (0, 1),
+    'com_14_tau1': (0, 1), 'com_14_tau2': (0, 1),
            }
 
 
@@ -80,6 +95,10 @@ def set_loader(args_due):
         normalize,
     ])
     if args_due.dataset2 == 'phison':
+        if args_due.dataset == 'PHISON_regroup':
+            train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df = CreateDataset_regroup_due(args_due.random_seed,add_test=True) 
+        if args_due.dataset == 'PHISON_regroup2':
+            train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df = CreateDataset_regroup_due_2(args_due.random_seed,add_test=True) 
         if args_due.dataset == 'PHISON':
             train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df = CreateDataset_relabel(args_due.random_seed, testing=None)  
         if args_due.dataset == 'PHISON_regroup3':
@@ -215,7 +234,8 @@ def get_uncertainty(model_s1, model,likelihood, dataloader, tsne=False):
                 output = output.to_data_independent_dist()
                 output = likelihood(output).probs.mean(0)
 
-        current_uncertainty = -(output * output.log()).sum(1)
+#         current_uncertainty = (-(output * output.log()).sum(1))
+        current_uncertainty = -(output * output.log()).sum(1) / torch.log(torch.tensor(output.shape[1], dtype=torch.float))
 
         current_uncertainty = current_uncertainty.cpu().numpy()
         
@@ -234,6 +254,17 @@ def set_model(args, args_due,train_com_loader , num_com):
     if args_due.n_inducing_points is None:
         args_due.n_inducing_points = num_classes
     n_inducing_points = args_due.n_inducing_points
+    
+    if args_due.coeff == 1:
+        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+    elif args_due.coeff == 3:
+        from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
+    elif args_due.coeff == 5:
+        from networks.mobilenetv3_SN5 import SupConMobileNetV3Large
+    elif args_due.coeff == 7:
+        from networks.mobilenetv3_SN7 import SupConMobileNetV3Large
+    elif args_due.coeff == 0:
+        from networks.mobilenetv3 import SupConMobileNetV3Large
     
     feature_extractor =  SupConMobileNetV3Large()
 
@@ -258,6 +289,7 @@ def set_model(args, args_due,train_com_loader , num_com):
     if torch.cuda.is_available():
         gpmodel_s1 = gpmodel_s1.cuda()
         likelihood = likelihood.cuda()
+#         cudnn.benchmark = True
         gpmodel_s1.load_state_dict(ckpt)
     
 
@@ -285,8 +317,10 @@ def set_model(args, args_due,train_com_loader , num_com):
     if torch.cuda.is_available():
         gpmodel = gpmodel.cuda()
         likelihood = likelihood.cuda()
+#         cudnn.benchmark = True
         gpmodel.load_state_dict(ckpt_gp)
-
+    #gpmodel.com_out.variational_strategy.base_variational_strategy.inducing_points
+#     import pdb;pdb.set_trace()
     return feature_extractor_s1, gpmodel, likelihood
 
 
@@ -393,11 +427,13 @@ def EXP2(args_due ,model_s1 ,model ,test_loader ,df ,train_component_label, val_
                 component_out = component_out.to_data_independent_dist()
                 component_out = likelihood(component_out).probs.mean(0)
             
-            current_uncertainty = -(component_out * component_out.log()).sum(1)
+#             current_uncertainty = -(component_out * component_out.log()).sum(1)
+            current_uncertainty = -(component_out * component_out.log()).sum(1) / torch.log(torch.tensor(component_out.shape[1], dtype=torch.float))
             
             
             _, prediction=torch.max(component_out.data, 1)
-
+#             prediction = [21 if x >= 21 else x for x in prediction]
+#             component_name = [21 if x >= 21 else x for x in component_name]
             
             
             unk_list=[]
@@ -411,6 +447,21 @@ def EXP2(args_due ,model_s1 ,model ,test_loader ,df ,train_component_label, val_
                 if current_uncertainty[i]>uncertainty_th_2:
                     unk_list.append(i)
 
+#             for i in range(len(current_uncertainty)):
+#                 if component_name[i] == prediction[i] :
+#                     uncertainty_th = TH_2[component_name[i].item()]
+# #                     uncertainty_th_2 = TH_2[component_name[i].item()]
+
+#                 if component_name[i] != prediction[i] :
+#                     if prediction[i]==21:
+#                         uncertainty_th = TH[21]
+#                     if prediction[i]==22:
+#                         uncertainty_th = TH[22]
+#                     else:
+#                         uncertainty_th = 0
+
+#                 if current_uncertainty[i]>uncertainty_th:
+#                     unk_list.append(i)
 
             prediction = [0 if x < good_num_com else 1 for x in prediction] 
             for i in bad_list:
@@ -418,12 +469,18 @@ def EXP2(args_due ,model_s1 ,model ,test_loader ,df ,train_component_label, val_
             for i in unk_list:
                 prediction[i] = 2   
 
-
+#             acc1 = accuracy(component_out, component_name, topk=(1))
+#             top1.update(acc1[0].item(), bsz)
+#             import pdb;pdb.set_trace()
+#             y_pred.extend(prediction.view(-1).detach().cpu().numpy())
             y_true.extend(labels.view(-1).detach().cpu().numpy())
             y_com.extend(component_name)
+#             y_com.extend(component_name.view(-1).detach().cpu().numpy())
+            
 
-
+            
             prediction=torch.Tensor(prediction)
+#             import pdb;pdb.set_trace()
             y_pred.extend(prediction.view(-1).detach().cpu().numpy())
              
             # ALL test samples 
@@ -517,36 +574,83 @@ def HybridExpert(y_pred_expert1, y_pred_expert2, y_true, name_label_list,  df, a
     return score
 
 
-def search(exp_2_tau1, exp_2_tau2):
+def search(com_0_tau1, com_0_tau2, com_1_tau1, com_1_tau2, com_2_tau1, com_2_tau2, com_3_tau1, com_3_tau2, com_4_tau1, com_4_tau2, com_5_tau1, com_5_tau2, com_6_tau1, com_6_tau2, com_7_tau1, com_7_tau2, com_8_tau1, com_8_tau2, com_9_tau1, com_9_tau2 ,com_10_tau1, com_10_tau2, com_11_tau1, com_11_tau2, com_12_tau1, com_12_tau2, com_13_tau1, com_13_tau2, com_14_tau1, com_14_tau2  ):
     params = {}    
-
-    params['exp_2_tau1'] = exp_2_tau1
-    params['exp_2_tau2'] = exp_2_tau2
+#     params['exp_1_tau1'] = exp_1_tau1
+#     params['exp_1_tau2'] = exp_1_tau2
+    params['com_0_tau1'] = com_0_tau1
+    params['com_0_tau2'] = com_0_tau2
+    params['com_1_tau1'] = com_1_tau1
+    params['com_1_tau2'] = com_1_tau2
+    params['com_2_tau1'] = com_2_tau1
+    params['com_2_tau2'] = com_2_tau2
+    params['com_3_tau1'] = com_3_tau1
+    params['com_3_tau2'] = com_3_tau2
+    params['com_4_tau1'] = com_4_tau1
+    params['com_4_tau2'] = com_4_tau2
+    params['com_5_tau1'] = com_5_tau1
+    params['com_5_tau2'] = com_5_tau2
+    params['com_6_tau1'] = com_6_tau1
+    params['com_6_tau2'] = com_6_tau2
+    params['com_7_tau1'] = com_7_tau1
+    params['com_7_tau2'] = com_7_tau2
+    params['com_8_tau1'] = com_8_tau1
+    params['com_8_tau2'] = com_8_tau2
+    params['com_9_tau1'] = com_9_tau1
+    params['com_9_tau2'] = com_9_tau2
+    params['com_10_tau1'] = com_10_tau1
+    params['com_10_tau2'] = com_10_tau2
+    params['com_11_tau1'] = com_11_tau1
+    params['com_11_tau2'] = com_11_tau2
+    params['com_12_tau1'] = com_12_tau1
+    params['com_12_tau2'] = com_12_tau2
+    params['com_13_tau1'] = com_13_tau1
+    params['com_13_tau2'] = com_13_tau2
+    params['com_14_tau1'] = com_14_tau1
+    params['com_14_tau2'] = com_14_tau2
 
     df_train = pd.DataFrame()
+    
+    df_train = df_train.append({'com':0,'TH':com_0_tau1 , 'TH_2':com_0_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':1,'TH':com_1_tau1 , 'TH_2':com_1_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':2,'TH':com_2_tau1 , 'TH_2':com_2_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':3,'TH':com_3_tau1 , 'TH_2':com_3_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':4,'TH':com_4_tau1 , 'TH_2':com_4_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':5,'TH':com_5_tau1 , 'TH_2':com_5_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':6,'TH':com_6_tau1 , 'TH_2':com_6_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':7,'TH':com_7_tau1 , 'TH_2':com_7_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':8,'TH':com_8_tau1 , 'TH_2':com_8_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':9,'TH':com_9_tau1 , 'TH_2':com_9_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':10,'TH':com_10_tau1 , 'TH_2':com_10_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':11,'TH':com_11_tau1 , 'TH_2':com_11_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':12,'TH':com_12_tau1 , 'TH_2':com_12_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':13,'TH':com_13_tau1 , 'TH_2':com_13_tau2 }, ignore_index=True)
+    df_train = df_train.append({'com':14,'TH':com_14_tau1 , 'TH_2':com_14_tau2 }, ignore_index=True)
 
-    for idx, component_name in enumerate(range(num_classes)):
-        train_val_com_loader  = CreateDataset_for_each_component_regroup(args["random_seed"],  train_val_df,component_name)
+#     for idx, component_name in enumerate(range(num_classes)):
+#         train_val_com_loader  = CreateDataset_for_each_component_regroup(args["random_seed"],  train_val_df,component_name)
 
-        if args_due.test_uncertainty == True:
-            # Calculate uncertainty from images in reference set
+#         if args_due.test_uncertainty == True:
+#             # Calculate uncertainty from images in reference set
 
-            uncertainty, labels_train, _, name_list_train, _, _ = get_uncertainty(model, gp_model, likelihood, train_val_com_loader, tsne=True)
+#             uncertainty, labels_train, _, name_list_train, _, _ = get_uncertainty(model, gp_model, likelihood, train_val_com_loader, tsne=True)
 
-            uncertainty_mean = np.mean(uncertainty , axis=0)
-            uncertainty_std = np.std(uncertainty , axis=0)
-            print('uncertainty_mean : ',uncertainty_mean)
-            print('uncertainty_std : ',uncertainty_std)
+#             uncertainty_mean = np.mean(uncertainty , axis=0)
+#             uncertainty_std = np.std(uncertainty , axis=0)
+#             print('uncertainty_mean : ',uncertainty_mean)
+#             print('uncertainty_std : ',uncertainty_std)
 
-            uncertainty_th = uncertainty_mean + (exp_2_tau1 * uncertainty_std)
-            uncertainty_th_2 = uncertainty_mean + (exp_2_tau2 * uncertainty_std)
+# #             uncertainty_th = uncertainty_mean + (3 * uncertainty_std)
+# #             uncertainty_th_2 = uncertainty_mean + (4 * uncertainty_std)
+#             uncertainty_th = uncertainty_mean + (exp_2_tau1 * uncertainty_std)
+#             uncertainty_th_2 = uncertainty_mean + (exp_2_tau2 * uncertainty_std)
 
 
-            df_train = df_train.append({'com':component_name,'TH':uncertainty_th , 'TH_2':uncertainty_th_2 }, ignore_index=True)
+#             df_train = df_train.append({'com':component_name,'TH':uncertainty_th , 'TH_2':uncertainty_th_2 }, ignore_index=True)
 
 
-        else:
-            print('Uncertainty calculations are not performed')
+#         else:
+#             print('Uncertainty calculations are not performed')
 
     filepath = './output/train_val/uncertainty.csv'
 
@@ -557,16 +661,18 @@ def search(exp_2_tau1, exp_2_tau2):
     df = pd.read_csv('./output/train_val/uncertainty.csv')
     TH = df['TH']
     TH_2 = df['TH_2']
-
+#     import pdb;pdb.set_trace()
     
     if args_due.test_inference == True:
         ####---- train+val set inference ----####       
-
+#         val_loader, test_loader, test_component_name_df, train_component_label, val_component_label, test_component_label ,train_val_loader = set_loader(args_due)
 
         test_df_orig = test_component_name_df.copy()    
         test_component_name_df_Expert2 = test_df_orig.copy()
         test_component_name_df_HybridExpert = test_df_orig.copy()
 
+#         print("1. Testing with Discriminative Model (Expert 1)")  # Discriminative model
+#         y_true, y_pred_expert1 = EXP1(args_due ,model ,train_val_loader, test_component_name_df, train_component_label, val_component_label, test_component_label)
 
         print("2. Testing with DUE (Expert 2)")  # Discriminative model
         name_label_list, y_pred_expert2  = EXP2(args_due ,model ,gp_model ,train_val_loader, test_component_name_df_Expert2, train_component_label, val_component_label, test_component_label ,likelihood ,TH,TH_2,good_num_com)
@@ -655,7 +761,7 @@ parser.add_argument(
     help="Don't inference",
 )
 parser.add_argument(
-    "--coeff", type=float, default=3, help="Spectral normalization coefficient"
+    "--coeff", type=float, default=1, help="Spectral normalization coefficient"
 )
 parser.add_argument("--dropout_rate", type=float, default=0.3, help="Dropout rate")
 parser.add_argument(
@@ -707,8 +813,13 @@ set_random_seed(args["random_seed"])
 # Create output directory if not exists
 if not os.path.isdir('./output/train_val/'):
     os.makedirs('./output/train_val/')
-if not os.path.isdir('./bay/'):
-    os.makedirs('./bay/')
+# if not os.path.isdir(args["output_dir"]):
+#     os.makedirs(args["output_dir"])
+#     logging.info(f"Created output directory {args['output_dir']}")
+
+# if not os.path.isdir('./output/'+args_due.output_inference_dir):
+#     os.makedirs('./output/'+args_due.output_inference_dir)
+
 
 
 # Initialize device
@@ -740,6 +851,9 @@ train_val_df = pd.concat([train_df, val_df])
 
 val_loader, test_loader, test_component_name_df, train_component_label, val_component_label, test_component_label ,train_val_loader = set_loader(args_due)
 
+# test_df_orig = test_component_name_df.copy()    
+# test_component_name_df_Expert2 = test_df_orig.copy()
+# test_component_name_df_HybridExpert = test_df_orig.copy()
 print("1. Testing with Discriminative Model (Expert 1)")  # Discriminative model
 y_true, y_pred_expert1 = EXP1(args_due ,model ,train_val_loader, test_component_name_df, train_component_label, val_component_label, test_component_label)
 

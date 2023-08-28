@@ -34,17 +34,17 @@ python train_CEDUE_stage2.py --output_dir /root/notebooks/nfs/work/jason.chen/DU
 ```
 - **Plotting t-SNE for Hybrid Expert Model and GMM Model**
 ```
-python tsne_CEdue.py --embedding_layer shared_embedding --checkpoint_path $ckpt --random_seed $seed --output_inference_dir CEdue_rd_$seed
+python tsne_CEDUE.py --embedding_layer shared_embedding --checkpoint_path $ckpt --random_seed $seed --output_inference_dir CEdue_rd_$seed
 ```
 - **Bayesian optimization**
 ```
-python bay_CEdue_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed 
+python bay_CEDUE_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed 
 ```
 - **Inference**
 ```
-python uncertainty_CEDUE_fruit_s2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
+python uncertainty_CEDUE_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
 
-python inference_CEDUE_2stage.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
+python inference_CEDUE_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
 ```
 
 ## Hybrid Expert model training script
@@ -71,7 +71,7 @@ do
     ckpt=/root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue/$seed/ckpt.pt
     gp_ckpt=/root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/stage2_model/CEdue_s2/$seed/gp_ckpt.pt
     
-    CUDA_VISIBLE_DEVICES=0 python bay_CEdue_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed 
+    CUDA_VISIBLE_DEVICES=0 python bay_CEDUE_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed 
 done
 ```
 ## Inference script
@@ -93,9 +93,9 @@ do
     ckpt=/root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/CEdue/$seed/ckpt.pt
     gp_ckpt=/root/notebooks/nfs/work/jason.chen/DUE/regroup_output_model/stage2_model/CEdue_s2/$seed/gp_ckpt.pt
     
-    CUDA_VISIBLE_DEVICES=0 python uncertainty_CEDUE_fruit_s2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
+    CUDA_VISIBLE_DEVICES=0 python uncertainty_CEDUE_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
 
-    CUDA_VISIBLE_DEVICES=0 python inference_CEDUE_2stage.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
+    CUDA_VISIBLE_DEVICES=0 python inference_CEDUE_stage2.py --relabel --checkpoint_path $ckpt --gp_checkpoint_path $gp_ckpt --random_seed $seed --output_inference_dir CEdue_s2_rd_$seed
     
 done
 ```

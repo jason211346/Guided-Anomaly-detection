@@ -24,7 +24,7 @@ from due.sngp import Laplace
 from lib.datasets_mo import get_dataset
 from lib.utils import get_results_directory, Hyperparameters, set_seed
 from pytorch_metric_learning import samplers
-from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+# from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
 
 import os
 
