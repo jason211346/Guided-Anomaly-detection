@@ -36,9 +36,9 @@ We found that general models perform poorly in detecting defects in new componen
 - [x] Gaussian Process : Gaussian Process can be used to learn the similarity between components and embed them into a high-dimensional vector space.
 
 - **Inference:**
-- [x] Discriminative Model 𝜶 with NN classifier
-- [x] Generative Model 𝜷 with Gaussian Process
-- [x] Prediction Converter 𝜸 : analyze the output 𝐲^𝐜𝐨𝐦 for good, bad, unknown classification
+- [x] MLP classifier 𝜶 : A fully connected layer with 2 output dimension for good and bad classification.
+- [x] Gaussian Process classifier 𝛃 : Gaussian Process classifier (GPC) for Component classification.
+- [x] Prediction Converter 𝜸 : analyze the output U for good, bad, unknown classification
 - [x] Prediction Combiner 𝐆 : combine the prediction result from 𝛂 and 𝛃 and yield the final prediction.
 ## Requirement
 ```
