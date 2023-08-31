@@ -35,7 +35,7 @@ torch.backends.cudnn.benchmark = True
 def set_gpmodel(hparams, train_com_loader, train_com_dataset, num_classes):
 
     if hparams.coeff ==1 :
-        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+        from networks.mobilenetv3_SN1 import SupConMobileNetV3Large
     elif hparams.coeff ==3 :
         from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
     elif hparams.coeff ==5 :

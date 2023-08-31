@@ -256,7 +256,7 @@ def set_model(args, args_due,train_com_loader , num_com):
     n_inducing_points = args_due.n_inducing_points
     
     if args_due.coeff == 1:
-        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+        from networks.mobilenetv3_SN1 import SupConMobileNetV3Large
     elif args_due.coeff == 3:
         from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
     elif args_due.coeff == 5:

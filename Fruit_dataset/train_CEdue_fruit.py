@@ -35,7 +35,7 @@ torch.backends.cudnn.benchmark = True
 def set_model(opt):
     
     if opt.coeff ==1 :
-        from networks.mobilenetv3_HybridExpert import SupConMobileNetV3Large
+        from networks.mobilenetv3_SN1 import SupConMobileNetV3Large
     elif opt.coeff ==3 :
         from networks.mobilenetv3_SN3 import SupConMobileNetV3Large
     elif opt.coeff ==5 :
