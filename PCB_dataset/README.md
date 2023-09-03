@@ -1,4 +1,4 @@
-# PCB-Defect-Detection-YWL
+# PCB-Defect-Detection
 
 ## Requirement
 ```
