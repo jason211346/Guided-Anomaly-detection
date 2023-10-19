@@ -237,8 +237,8 @@ def main(hparams):
 
 
         
-    @trainer.on(Events.EPOCH_COMPLETED)
-    def log_results(trainer):
+    # @trainer.on(Events.EPOCH_COMPLETED)
+    def log_results(engine):
         metrics = trainer.state.metrics
         train_loss = metrics["loss"]
 
@@ -273,11 +273,7 @@ def main(hparams):
 
         scheduler2.step()
         return -test_loss
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> 738de86ef82d1a93405de177a9e085c12c7caf1a
     pbar = ProgressBar(dynamic_ncols=True)
     pbar.attach(trainer)
 
@@ -297,22 +293,33 @@ def main(hparams):
     #     val_loss = val_com_loss 
         
     #     return -val_loss
-    
+
+    def compute_and_cache_log_results(engine):
+        global last_log_results
+        last_log_results = log_results(engine)
+        return last_log_results
+
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, compute_and_cache_log_results)
+
+    # 2. 使用此值於Checkpoint和EarlyStopping
+    def get_cached_log_results(engine):
+        return last_log_results
+        
     handler = Checkpoint(
         to_save, results_dir,
         n_saved=3, filename_prefix='best',
-        score_function=log_results,
+        score_function=get_cached_log_results,
         score_name="loss",
         global_step_transform=global_step_from_engine(trainer)
     )
 
-    trainer.add_event_handler(Events.COMPLETED, handler)
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
     
         # --- Early_stopping ---
 
-    handler = EarlyStopping(patience=10, score_function=log_results, trainer=trainer)
+    handler = EarlyStopping(patience=10, score_function=get_cached_log_results, trainer=trainer)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
-    trainer.add_event_handler(Events.COMPLETED, handler)
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
 
     trainer.run(data,  max_epochs=50)
     # Done training - time to evaluate
