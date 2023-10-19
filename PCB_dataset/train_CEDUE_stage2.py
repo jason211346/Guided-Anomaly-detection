@@ -272,7 +272,8 @@ def main(hparams):
         writer.add_scalar("Accuracy/test", acc, trainer.state.epoch)
 
         scheduler2.step()
-
+        return -test_loss
+        
     pbar = ProgressBar(dynamic_ncols=True)
     pbar.attach(trainer)
 
@@ -284,30 +285,30 @@ def main(hparams):
     # --- Save Model ---
     to_save = {'model': model}
             
-    def run_validation(engine):
+    # def run_validation(engine):
 
-        metrics = evaluator.state.metrics
-        val_com_loss = metrics["loss"]
+    #     metrics = evaluator.state.metrics
+    #     val_com_loss = metrics["loss"]
 
-        val_loss = val_com_loss 
+    #     val_loss = val_com_loss 
         
-        return -val_loss
+    #     return -val_loss
     
     handler = Checkpoint(
         to_save, results_dir,
         n_saved=3, filename_prefix='best',
-        score_function=run_validation,
+        score_function=log_results,
         score_name="loss",
         global_step_transform=global_step_from_engine(trainer)
     )
 
-    evaluator.add_event_handler(Events.COMPLETED, handler)
+    trainer.add_event_handler(Events.COMPLETED, handler)
     
         # --- Early_stopping ---
 
-    handler = EarlyStopping(patience=10, score_function=run_validation, trainer=trainer)
+    handler = EarlyStopping(patience=10, score_function=log_results, trainer=trainer)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
-    evaluator.add_event_handler(Events.COMPLETED, handler)
+    trainer.add_event_handler(Events.COMPLETED, handler)
 
     trainer.run(data,  max_epochs=50)
     # Done training - time to evaluate
