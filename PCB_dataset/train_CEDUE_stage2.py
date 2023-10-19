@@ -274,12 +274,7 @@ def main(hparams):
         scheduler2.step()
         return -test_loss
 
-    pbar = ProgressBar(dynamic_ncols=True)
-    pbar.attach(trainer)
 
-
-
-    
     
 
     # --- Save Model ---
@@ -301,7 +296,7 @@ def main(hparams):
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, compute_and_cache_log_results)
 
-    # 2. 使用此值於Checkpoint和EarlyStopping
+    # 使用此值於Checkpoint和EarlyStopping
     def get_cached_log_results(engine):
         return last_log_results
         
@@ -320,6 +315,10 @@ def main(hparams):
     handler = EarlyStopping(patience=10, score_function=get_cached_log_results, trainer=trainer)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
     trainer.add_event_handler(Events.EPOCH_COMPLETED, handler)
+
+    pbar = ProgressBar(dynamic_ncols=True)
+    pbar.attach(trainer)
+
 
     trainer.run(data,  max_epochs=50)
     # Done training - time to evaluate
