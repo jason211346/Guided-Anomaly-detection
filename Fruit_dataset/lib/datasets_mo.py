@@ -1977,8 +1977,8 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
 
     val_com_df = val_good_df.copy()
     val_com_bad_df = val_bad_df.copy()
-    missing_val_samples = val_com_bad_df.loc[(val_com_df['component_name']==missing_label)]
-    stand_val_samples = val_com_bad_df.loc[(val_com_df['component_name']==stand_label)]
+    missing_val_samples = val_com_bad_df.loc[(val_com_bad_df['component_name']==missing_label)]
+    stand_val_samples = val_com_bad_df.loc[(val_com_bad_df['component_name']==stand_label)]
     val_com_df = pd.concat([val_com_df, missing_val_samples, stand_val_samples])
 
     print("Num of Images in Component Training set: ", sum(train_df['class'].value_counts().tolist()))
