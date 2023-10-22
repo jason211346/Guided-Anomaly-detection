@@ -1974,11 +1974,18 @@ def CreateDataset_regroup_due_2_seed1212(seed , add_test, testing=None):
             val_bad_df = pd.concat([val_bad_df, component])
             
     val_df = pd.concat([val_good_df, val_bad_df])
+
+    val_com_df = val_good_df.copy()
+    val_com_bad_df = val_bad_df.copy()
+    missing_val_samples = val_com_bad_df.loc[(val_com_df['component_name']==missing_label)]
+    stand_val_samples = val_com_bad_df.loc[(val_com_df['component_name']==stand_label)]
+    val_com_df = pd.concat([val_com_df, missing_val_samples, stand_val_samples])
+
     print("Num of Images in Component Training set: ", sum(train_df['class'].value_counts().tolist()))
     print("Num of Images in Validation set: ", sum(val_df['class'].value_counts().tolist()))
     print("Num of Images in Testing set: ", sum(test_df['class'].value_counts().tolist()))
     
-    return train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df
+    return train_df, val_df, test_df, train_component_label, val_component_label, test_component_label, train_com_df, val_com_df
 def CreateDataset_regroup_due_2_seed42(seed , add_test, testing=None):
     # 1:A, 2:B, 3:C, 4:D, 7:F, 8:E
     random.seed(seed)
@@ -3699,7 +3706,7 @@ def get_PHISON_regroup_3(root, seed):
     
     add_test = True
     
-    train_cls_regroup_df, val_regroup_df, test_regroup_df, train_component_label, val_component_label, test_component_label, train_com_regroup_df = CreateDataset_regroup_due_2_seed1212(seed ,add_test)
+    train_cls_regroup_df, val_regroup_df, test_regroup_df, train_component_label, val_component_label, test_component_label, train_com_regroup_df,val_com_df = CreateDataset_regroup_due_2_seed1212(seed ,add_test)
     
     num_classes = len(set(train_com_regroup_df['component_name']))
 
@@ -3712,7 +3719,7 @@ def get_PHISON_regroup_3(root, seed):
     train_com_dataset = CustomDataset(train_com_regroup_df, transform=train_transform)  
     
     test_dataset = CustomDataset(val_regroup_df, transform=test_transform)
-#     test_com_dataset = CustomDataset(val_com_df, transform=test_transform)
+    test_com_dataset = CustomDataset(val_com_df, transform=test_transform)
     
     per_component_num = 32 // len(train_com_dataset.dataframe['component_name'].value_counts().index)
     per_class_num = 32 // len(train_cls_dataset.dataframe['class'].value_counts().index)
@@ -3729,7 +3736,7 @@ def get_PHISON_regroup_3(root, seed):
 
 
 
-    return input_size ,num_classes ,train_com_loader, train_cls_loader, test_dataset ,train_cls_dataset,train_com_dataset
+    return input_size ,num_classes ,train_com_loader, train_cls_loader, test_dataset ,train_cls_dataset,train_com_dataset,test_com_dataset
 def get_PHISON_regroup_4(root, seed):
     input_size = 224
 #     num_classes = 23

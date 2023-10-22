@@ -59,7 +59,7 @@ def main(hparams):
     hparams.seed = set_seed(hparams.seed)
 
     ds = get_dataset(hparams.dataset,hparams.seed, root=hparams.data_root)
-    input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset = ds
+    input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset,test_com_dataset = ds
 
     if hparams.n_inducing_points is None:
         hparams.n_inducing_points = num_classes

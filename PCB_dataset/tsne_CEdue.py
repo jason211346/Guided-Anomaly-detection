@@ -329,7 +329,7 @@ if __name__ == "__main__":
     checkpoint: Dict[str, Any] = torch.load(checkpoint_path, map_location="cuda:0")
     logging.info(f"Loaded checkpoint at {args['checkpoint_path']}")
     ds = get_dataset(args_due.dataset ,args_due.random_seed , root="./data")
-    input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset = ds
+    input_size ,num_classes , train_com_loader, train_loader, test_dataset ,train_cls_dataset,train_com_dataset,test_com_dataset = ds
     
     # Intialize model
     model , likelihood = set_model(args, args_due, train_com_loader , num_classes)
