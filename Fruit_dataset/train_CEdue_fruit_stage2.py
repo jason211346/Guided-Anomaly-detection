@@ -133,45 +133,9 @@ def main(hparams):
     global best_loss
     best_loss =100
 
-#     model, loss_fn_cls = set_model(hparams)
-    
-#     # stage 1 
-#     initial_inducing_points, initial_lengthscale = dkl_Phison_mo.initial_values(
-#         train_com_loader, model, hparams.n_inducing_points # if hparams.n_inducing_points= none ,hparams.n_inducing_points = num_class
-#     )
 
-#     gp = dkl_Phison_mo.GP(
-#         num_outputs=num_classes, #可能=conponent 數量 = 23個 
-#         initial_lengthscale=initial_lengthscale,
-#         initial_inducing_points=initial_inducing_points,
-#         kernel=hparams.kernel,
-#     )
-
-#     model = dkl_Phison_mo.DKL(model, gp)
-
-#     likelihood = SoftmaxLikelihood(num_classes=num_classes, mixing_weights=False)
-#     likelihood = likelihood.cuda()
-
-#     elbo_fn = VariationalELBO(likelihood, gp, num_data=len(train_com_dataset))
-#     loss_fn = lambda x, y: -elbo_fn(x, y)
-#     model = model.cuda()
     gpmodel_s1, model, likelihood, loss_fn = set_gpmodel(hparams, train_com_loader, train_com_dataset, num_classes)
     
-#     params_cls = []
-#     for key, value in dict(model.named_parameters()).items():
-#         if value.requires_grad:
-#             if "com_out" not in key:
-#                 if "component_classifier" not in key:
-#                     params_cls += [{'params': [value], 'lr': hparams.learning_rate, 'weight_decay': hparams.weight_decay}]
-                
-#     if hparams.likelihood == True:
-#         print('likelihood :' , hparams.likelihood)
-#         params_cls += [{'params': likelihood_cls.parameters()}]
-        
-#     optimizer = torch.optim.SGD(params_cls,
-#                                 lr=hparams.learning_rate,
-#                               momentum=0.9,
-#                               weight_decay= hparams.weight_decay)
     
     params_com = []
     for key, value in dict(model.named_parameters()).items():
@@ -271,37 +235,7 @@ def main(hparams):
         
         return y_com_s2, gt_com
 
-#     def eval_step2(engine, batch):
-#         model.eval()
-#         if not hparams.sngp:
-#             likelihood.eval()
 
-#         x, gt_cls, _, gt_com = batch
-#         x, gt_cls, gt_com = x.cuda(), gt_cls.cuda(), gt_com.cuda()
-        
-#         with torch.no_grad():
-#             y_cls, y_com = model(x)   
-            
-#         return y_cls, gt_cls
-
-
-#     def eval_step(engine, batch):
-#         model.eval()
-#         if not hparams.sngp:
-#             likelihood.eval()
-
-#         x, gt_cls, _, gt_com = batch
-#         x, gt_cls, gt_com = x.cuda(), gt_cls.cuda(), gt_com.cuda()
-
-#         with torch.no_grad():
-#             y_cls, y_com = model(x)
-#             with gpytorch.settings.num_likelihood_samples(32):
-#             _ , y_com = model(x).to_data_independent_dist()
-#             output = likelihood(y_com).probs.mean(0)
-
-#         uncertainty = -(output * output.log()).sum(1)
-
-#         return y_com, gt_com
 #     
 
     evaluator = Engine(eval_step)
@@ -321,32 +255,18 @@ def main(hparams):
 
         return y_pred, y
 
-#     def output_transform_cls(output):
-#         y_pred_cls, y_cls = output
 
-#         # Sample softmax values independently for classification at test time
-#         y_pred_cls = y_pred_cls.to_data_independent_dist()
-
-#         # The mean here is over likelihood samples
-#         y_pred_cls = likelihood_cls(y_pred_cls).probs.mean(0)
-
-#         return y_pred_cls, y_cls
 
     metric = Accuracy(output_transform=output_transform)
     metric.attach(evaluator, "accuracy")
 
-#     metric = Accuracy(output_transform=output_transform_cls)
-#     metric = Accuracy()
-#     metric.attach(evaluator2, "accuracy_cls")
+
 
 
     metric = Loss(lambda y_pred, y: -likelihood.expected_log_prob(y, y_pred).mean())
     metric.attach(evaluator, "loss")
 
-#     metric = Loss(lambda y_pred_cls, y_cls: -likelihood_cls.expected_log_prob(y_cls, y_pred_cls).mean())
-#     metric.attach(evaluator2, "loss")
-#     metric = Loss(F.cross_entropy)
-#     metric.attach(evaluator2, "loss")
+
 
 
     
@@ -376,30 +296,13 @@ def main(hparams):
 
         writer.add_scalar("Loss/train", train_loss, trainer.state.epoch)
 
-#         if hparams.spectral_conv:
-#             for name, layer in model.feature_extractor.named_modules():
-#                 if isinstance(layer, torch.nn.Conv2d):
-#                     writer.add_scalar(
-#                         f"sigma/{name}", layer.weight_sigma, trainer.state.epoch
-#                     )
 
-#         if trainer.state.epoch > 150 and trainer.state.epoch % 5 == 0:
-#         _, auroc, aupr = get_ood_metrics(
-#             train_dataset, test_dataset, model, likelihood, hparams.data_root
-#         )
-#         print(f"OoD Metrics - AUROC: {auroc}, AUPR: {aupr}")
-#         writer.add_scalar("OoD/auroc", auroc, trainer.state.epoch)
-#         writer.add_scalar("OoD/auprc", aupr, trainer.state.epoch)
 
         evaluator.run(test_com_loader)
         metrics = evaluator.state.metrics
         acc = metrics["accuracy"]
         test_com_loss = metrics["loss"]
-        
-#         evaluator2.run(test_loader)
-#         metrics = evaluator2.state.metrics
-#         acc_cls = metrics["accuracy_cls"]
-#         test_cls_loss = metrics["loss"]
+
         
         test_loss = test_com_loss #+ test_cls_loss
         
@@ -413,34 +316,13 @@ def main(hparams):
         print(result)
         writer.add_scalar("Loss/test", test_loss, trainer.state.epoch)
         writer.add_scalar("Accuracy/test", acc, trainer.state.epoch)
-#         writer.add_scalar("Accuracy_cls/test", acc_cls, trainer.state.epoch)
 
-#         path = str(results_dir) +"/likelihood_"+ str(trainer.state.epoch) + ".pt"
-#         torch.save(likelihood.state_dict(), path)
-
-#         path_cls = str(results_dir) +"/likelihood_cls_"+ str(trainer.state.epoch) + ".pt"
-#         torch.save(likelihood_cls.state_dict(), path_cls)
 
 
 #         scheduler.step()
         scheduler2.step()
         return -test_loss
 
-
-
-
-#     @trainer.on(Events.EPOCH_COMPLETED)
-#     def save_model():
-
-#         print('best_loss:',best_loss)
-#         now_loss = run_validation()
-#         if best_loss > now_loss:
-#             best_loss = now_loss
-#             save_file = os.path.join(hparams.output_dir, 'MoV3_MLP.pth')
-#             torch.save(model, save_file)
-
-
-    
     
 
     # --- Save Model ---
@@ -492,26 +374,6 @@ def main(hparams):
     # Done training - time to evaluate
     results = {}
 
-#     evaluator.run(test_loader)
-#     test_acc = evaluator.state.metrics["accuracy"]
-#     test_loss = evaluator.state.metrics["loss"]
-#     results["test_accuracy"] = test_acc
-#     results["test_loss"] = test_loss
-
-    
-    
-
-    #--- ood ---
-#     _, auroc, aupr = get_ood_metrics(
-#         train_dataset, test_dataset, model, likelihood, hparams.data_root
-#     )
-#     results["auroc_ood_svhn"] = auroc
-#     results["aupr_ood_svhn"] = aupr
-
-#     print(f"Final accuracy {results['test_accuracy']:.4f}")
-
-#     results_json = json.dumps(results, indent=4, sort_keys=True)
-#     (results_dir / "results.json").write_text(results_json)
 
     torch.save(model.state_dict(), results_dir / "model.pt")
     if likelihood is not None:
