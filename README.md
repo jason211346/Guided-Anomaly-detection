@@ -4,7 +4,7 @@ We present our code on PCB Dataset and Fruit Dataset in two folder. Please go in
 
 ## Dataset
 
-[**PCB Dataset**](https://github.com/jason211346/Guided-Anomaly-detection-aka.-DeepGD3-/tree/main/PCB_dataset) |  [**Fruit Dataset**](https://github.com/jason211346/Guided-Anomaly-detection-aka.-DeepGD3-/tree/main/Fruit_dataset)
+[**PCB Dataset**](https://github.com/jason211346/Guided-Anomaly-detection/tree/main/PCB_dataset) |  [**Fruit Dataset**](https://github.com/jason211346/Guided-Anomaly-detection/tree/main/Fruit_dataset)
 :-------------------------:|:-------------------------:
 <img src="img/PCB_dataset.png" alt="drawing" width="400"/> |  <img src="img/fruit_dataset.png" alt="drawing" width="400"/>
 
